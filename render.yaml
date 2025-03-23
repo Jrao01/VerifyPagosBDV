@@ -5,8 +5,7 @@ services:
     buildCommand: |
       npm install
       npx puppeteer browsers install chrome
-      npm run build # Or your build command
-    startCommand: node app.js
+    startCommand: npm start
     envVars:
       - key: PUPPETEER_EXECUTABLE_PATH
         value: /opt/render/.cache/puppeteer/chrome/linux-123456/chrome-linux64/chrome #the linux version number will change.
