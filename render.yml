@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: bcvscrapeo
+    runtime: node
+    buildCommand: |
+      npm install
+      npx puppeteer browsers install chrome
+      CHROME_PATH=$(find /opt/render/.cache/puppeteer -name chrome)
+      echo "CHROME_PATH=$CHROME_PATH"
+    startCommand: node app.js
+    envVars:
+      - key: PUPPETEER_EXECUTABLE_PATH
+        value: ${CHROME_PATH}
