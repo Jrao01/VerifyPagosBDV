@@ -5,7 +5,8 @@ import stealth from 'puppeteer-extra-plugin-stealth';
 import anonymizer from 'puppeteer-extra-plugin-anonymize-ua';
 import fs from 'fs';
 import cors from 'cors';
-
+import dotenv from 'dotenv';
+dotenv.config();
 app.use(cors());
 
 const PORT = 3000;
@@ -31,11 +32,13 @@ let nPagoR = 0;
     // Configura Puppeteer para usar puppeteer-core y la ruta de Chrome
     browser = await puppeteer.launch({
         headless: true, // Cambia a true para Render
-        executablePath:'/opt/render/.cache/puppeteer/chrome/linux-134.0.6998.35/chrome-linux64/chrome', // Ruta de Chrome en Render
+        executablePath: process.env.NODE_ENV === 'produccion' 
+        ? process.env.PUPPETEER_EXECUTABLE_PATH 
+        : puppeteer.executablePath(), // Ruta de Chrome en Render
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
+            //'--disable-dev-shm-usage',
             '--single-process',
             '--no-zygote',
         ],
