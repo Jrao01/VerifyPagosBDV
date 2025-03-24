@@ -110,7 +110,7 @@ let nPagoR = 0;
     };
 
     // Set interval to refresh the session every minute
-    setInterval(refreshSession, 15000);
+    setInterval(refreshSession, 40000);
 
     try {
         await page.waitForSelector('input[formcontrolname="username"]', { timeout: 0 });
