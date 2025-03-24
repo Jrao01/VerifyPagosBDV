@@ -31,7 +31,7 @@ let nPagoR = 0;
     // Configura Puppeteer para usar puppeteer-core y la ruta de Chrome
     browser = await puppeteer.launch({
         headless: true, // Cambia a true para Render
-        executablePath:'/opt/render/.cache/puppeteer/chrome/linux-134.0.6998.35/chrome-linux64/chrome-linux64/chrome', // Ruta de Chrome en Render
+        executablePath:'/opt/render/.cache/puppeteer/chrome/linux-134.0.6998.35/chrome-linux64/chrome/chrome', // Ruta de Chrome en Render
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
