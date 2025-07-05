@@ -1,15 +1,14 @@
 {
-  "name": "bcvscrapeo",
-  "version": "1.0.0",
+  "name": "bcvsCrapeo",
+  "version": "2.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node app.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Jamer A.K.A Data Stealer",
   "license": "ISC",
-  "description": "",
+  "description": "api de verificacion de pago movil al banco de venezuela, priximas versiones incluirán mas bancos",
   "type": "module",
   "dependencies": {
     "cors": "^2.8.5",
@@ -19,6 +18,8 @@
     "puppeteer": "^24.4.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-anonymize-ua": "^2.4.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "sequelize": "^6.37.7",
+    "sqlite3": "^5.1.7"
   }
 }
