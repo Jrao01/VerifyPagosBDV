@@ -30,6 +30,7 @@ let browser;
 let page;
 let nPagoV = 0;
 let nPagoR = 0;
+let serviceStatus = { status: 503, message: 'Servicio no disponible' };
 let interruptor = false;
 let credenciales = {
     username: 'prueba',
@@ -46,11 +47,16 @@ await sequelize.sync({force:false}).then(async() => {
 
 const browserInit = async () => {
         
+            if(browser){
+                await browser.close()
+            }
+
             browser = await puppeteer.launch({
                 headless: false, // Cambia a true para Render
                 executablePath: process.env.NODE_ENV === 'production' 
                 ? process.env.PUPPETEER_EXECUTABLE_PATH 
-                : puppeteer.executablePath(), // Ruta de Chrome en Render
+                : puppeteer.executablePath(),  // Ruta de Chrome en Render
+                slowMo: 30,
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -87,72 +93,150 @@ const browserInit = async () => {
                 }
             }
         
-            await page.goto('https://bdvenlinea.banvenez.com/', { waitUntil: 'load', timeout: 0 });
+            const check = await page.goto('https://bdvenlinea.banvenez.com/', { waitUntil: 'load', timeout: 0 });
         
-            // Load localStorage // Cambia la ruta para Render
-            const localStoragePath = 'localStorage.json'; 
-            if (fs.existsSync(localStoragePath)) {
-                try {
-                    const localStorageData = fs.readFileSync(localStoragePath, 'utf8');
-                    if (localStorageData) {
-                        await page.evaluate(data => {
-                            const entries = JSON.parse(data);
-                            for (let [key, value] of Object.entries(entries)) {
-                                localStorage.setItem(key, value);
+
+            const status = await check.status();
+            console.log('status:', status);
+
+                if(status === 200){
+                    serviceStatus = { status: 200, message: 'Servicio disponible' };
+                    // Load localStorage // Cambia la ruta para Render
+                    /*const localStoragePath = 'localStorage.json'; 
+                    if (fs.existsSync(localStoragePath)) {
+                        try {
+                            const localStorageData = fs.readFileSync(localStoragePath, 'utf8');
+                            if (localStorageData) {
+                                await page.evaluate(data => {
+                                    const entries = JSON.parse(data);
+                                    for (let [key, value] of Object.entries(entries)) {
+                                        localStorage.setItem(key, value);
+                                    }
+                                }, localStorageData);
                             }
-                        }, localStorageData);
-                    }
-                } catch (error) {
-                    console.error('Error parsing localStorage.json:', error);
-                }
-            }
+                        } catch (error) {
+                            console.error('Error parsing localStorage.json:', error);
+                        }
+                    }*/
         
-            page.setRequestInterception(true);
-            page.on('request', (request) => {
-                if (request.resourceType() === 'document' || request.resourceType() === 'script') {
-                    request.continue();
-                } else {
-                    //request.abort();
+                    page.setRequestInterception(true);
+                    page.on('request', (request) => {
+                        if (request.resourceType() === 'document' || request.resourceType() === 'script') {
+                            request.continue();
+                        } else {
+                            request.abort();
+                        }
+                    });
+                }else{
+                    console.log('Error al cargar la página due status:', status);
+                    serviceStatus = { status: 503, message: 'Servicio no disponible' };
+                    await browser.close();
                 }
-            });
+
+
 }
 
-
+let refreshAttempts = 0;
+const MAX_REFRESH_ATTEMPTS = 3;
 
 const refreshSession = async () => {
     try {
-
-        if (browser.isConnected()){
+        let process = 'refreshing'
+        if (browser && browser.isConnected() && page && !page.isClosed()) {
             console.log('starting to Refresh session...');
-            await page.goto('https://bdvenlinea.banvenez.com/', { waitUntil: 'domcontentloaded', timeout: 0 });
-            try{
-                    //console.log('Esperando a que cargue mat-button ');
-                    await page.waitForSelector('td mat-icon', { timeout: 2000 });
+            const check = await page.goto('https://bdvenlinea.banvenez.com/', { waitUntil: 'load', timeout: 0 });
+            //const status = await check.status();
+            //console.log('status:', status);
+
+            if (/*status === 200 ||*/ process === 'refreshing' ) {
+                refreshAttempts = 0; // reset counter
+////////////////////
+
+
+                    try{
+                        console.log('Esperando a que cargue mat-button ');
+                    await page.waitForSelector('td mat-icon', { timeout: 5000 });
                     await delay(300);
                     await page.click('td mat-icon');
 
-                    try{
-                        await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 2000 });
-                    }catch(error){
-                        console.error('Error al cargar el input de busqueda :', error);
+                        try{
+                            await page.waitForSelector('input[placeholder="Buscar"]', { timeout:20000 });
+                                serviceStatus = { status: 200, message: 'Servicio disponible' };
+                        }catch(error){
+                            console.error('Error al cargar el input de busqueda :', error);
+                            console.log('Intentando de nuevo...');
+                            await refreshSession()
+                        }
+
+                    } catch(error){
+                        console.error('mat-button no encontrado:', error);
                         console.log('Intentando de nuevo...');
                         await refreshSession()
                     }
-                } catch(error){
-                    console.error('mat-button no encontrado:', error);
-                    console.log('Intentando de nuevo...');
-                    await page.reload();
-                    await delay(300);
+
+
+////////////////////
+/*
+                try {
+                    console.log('esperando por td mat-icon en refresh')
+                    console.log('esperando por td mat-icon en refresh')
+                    console.log('esperando por td mat-icon en refresh')
+                    await page.waitForSelector('td mat-icon', { timeout: 2000 });
+                    //await delay(300);
                     await page.click('td mat-icon');
+                    console.log('clickeado td mat-icon en refresh')
+                    console.log('clickeado td mat-icon en refresh')
+                    console.log('clickeado td mat-icon en refresh')
+                    try {
+                        await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 2000 });
+                        serviceStatus = { status: 200, message: 'Servicio disponible' };
+                        console.log('Session refreshed');
+                    } catch (error) {
+                        console.error('Error al cargar el input de busqueda :', error);
+                        if (++refreshAttempts < MAX_REFRESH_ATTEMPTS) {
+                            console.log('Intentando de nuevo...');
+                            await refreshSession();
+                        } else {
+                            console.error('Máximo de intentos de refresco alcanzado');
+                            await page.close();
+                            await browser.close();
+                            serviceStatus = { status: 503, message: 'Servicio no disponible' };
+                            refreshAttempts = 0;
+                        }
+                    }
+                } catch (error) {
+                    console.error('mat-button no encontrado:', error);
+                    try {
+                        await page.reload();
+                        //await delay(300);
+                        await page.waitForSelector('td mat-icon', { timeout: 3000 });
+                        await page.click('td mat-icon');
+                    } catch (reloadError) {
+                        console.error('Error tras recargar la página:', reloadError);
+                    }
+                }*/
+            } else {
+                console.log('Error al cargar la página due status:');
+                if (++refreshAttempts < MAX_REFRESH_ATTEMPTS) {
+                    await refreshSession();
+                } else {
+                    console.error('Máximo de intentos de refresco alcanzado');
+                    refreshAttempts = 0;
+                        await page.close();
+                        await browser.close();
+                        serviceStatus = { status: 503, message: 'Servicio no disponible' };
                 }
-                console.log('Session refreshed');
-            }else{
-                console.log('no hay sesion que refrescar')
             }
-            
+        } else {
+            console.log('no hay sesion que refrescar');
+        }
     } catch (error) {
         console.error('Error refreshing session:', error);
-        await refreshSession()
+            console.error('Máximo de intentos de refresco alcanzado');
+            refreshAttempts = 0;
+            await page.close();
+            await browser.close();
+            serviceStatus = { status: 503, message: 'Servicio no disponible' };
     }
 };
 
@@ -188,7 +272,7 @@ const Login = async (username,password, testing)=>{
                             console.log('------------------------------')
                             return {status: false, message: rechazo, argg : 'Credenciales correctas, accediendo a la cuenta'};
                         } else if(rechazo/* == ' Aceptar '*/){
-                            let argg = document.querySelector('simple-snack-bar span.ng-tns-c17-18') ? document.querySelector('simple-snack-bar span.ng-tns-c17-18').innerText : "Error al iniciar sesión";
+                            let argg = document.querySelector('span.ng-tns-c17-18') ? document.querySelector(/*'simple-snack-bar */'span.ng-tns-c17-18').innerText : "Error al iniciar sesión";
                             return {status: true, message: rechazo, argg : argg};
                         } 
                     })
@@ -204,6 +288,7 @@ const Login = async (username,password, testing)=>{
                     if (checkingCreds.status == true){
                         await page.close()
                         await browser.close();
+                        serviceStatus = { status: 503, message: 'Servicio no disponible' };
                         return checkingCreds;
                         ///await delay(20000);
                     }
@@ -215,12 +300,13 @@ const Login = async (username,password, testing)=>{
                     await page.click('td mat-icon');
 
                         try{
-                            await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 2000 });
+                            await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 4000 });
                             if (testing === true){
                                 checkingCreds.mode = 'testing';
                                 console.log('inicio de sesion de testeo exitoso, cerrando navegador');
-                                page.close();
-                                browser.close();
+                                await page.close();
+                                await browser.close();
+                                serviceStatus = { status: 200, message: 'Servicio disponible' };
                             }
                             return checkingCreds;
                         }catch(error){
@@ -235,16 +321,20 @@ const Login = async (username,password, testing)=>{
                         await page.reload();
                         await delay(300);
                         await page.click('td mat-icon');
+                        return checkingCreds
                     }
                 }catch(error){
                     console.error('Error al iniciar sesión:', error);
                     console.log('Error al iniciar sesiónnnnn');
+                    serviceStatus = { status: 503, message: 'Servicio no disponible' };
+                    return checkingCreds 
                 }
 
             } catch (error) {
                 console.error(error);
                 console.log('Error al iniciar sesión, revisa las credenciales');
-                //browser.close();
+                serviceStatus = { status: 503, message: 'Servicio no disponible' };
+                //await browser.close();
                 //return fail = true;
             }
     
@@ -263,10 +353,11 @@ const deployBrowser = async (username, password, testing) => {
         }else{
             //res.status(404).json({message: 'No se encontraron credenciales o hay más de una'});
             console.log('No se encontraron credenciales o hay más de una', credenciales);
+            return {status: true, message: ' registre credenciales y luego inicie el servicio', argg : 'No se encontraron credenciales'};
         }
     }catch(error){
         console.error('Error al iniciar el navegador:', error);
-        return;
+        return {status: true, message: 'intente de nuevo, revise credenciales y status del servicio', argg : 'N/A'};;
     }
 
     if (interruptor == true){
@@ -307,8 +398,18 @@ app.post('/registercredencials', async (req, res) => {
         if(interruptor === true){
             browser.close();
         }
-        await deployBrowser(username, password, true);
-        res.status(200).json({ message: 'Credenciales registradas correctamente' });
+            const falla =  await deployBrowser(username, password, true);
+
+            if (falla  && falla.status === false ){
+                console.log(falla.status)
+                console.log('Credenciales registradas correctamente');
+                res.status(200).json({ message: 'Credenciales registradas y verificadas correctamente' });
+            }else{
+                console.log(falla.status)
+                console.log('error al registrar las credenciales');
+                return res.status(500).json({ message: 'error al registrar las credenciales'  });
+            }
+
     }catch(error){
         console.error(error);
         console.log('Error al registrar credenciales',);
@@ -319,20 +420,20 @@ app.post('/editCredentials', async (req, res) => {
     try{
         const { username, password } = req.body;
         await Credenciales.update({username:username,password:password},{ where: { id: 1 } }); 
-        
+        // document.querySelector('div.navbar button.mat-button span.mat-button-wrapper span') body > app-root > app-home-layout > app-menu > div > app-sidebar > mat-sidenav-container > mat-sidenav-content > app-navbar > div.navbar > div > button:nth-child(7)
         try{
             if(!page.isClosed()){
                 await page.waitForSelector('div.col button.mat-button',{ timeout: 0 });
                 await page.click('div.col button.mat-button');
-                
-                await page.waitForSelector('div.navbar button.mat-button span.mat-button-wrapper span',{ timeout: 0 });
-                await page.click('div.navbar button.mat-button span.mat-button-wrapper span');
+
+                await page.waitForSelector('body > app-root > app-home-layout > app-menu > div > app-sidebar > mat-sidenav-container > mat-sidenav-content > app-navbar > div.navbar > div > button:nth-child(7)',{ timeout: 0 });
+                await page.click('body > app-root > app-home-layout > app-menu > div > app-sidebar > mat-sidenav-container > mat-sidenav-content > app-navbar > div.navbar > div > button:nth-child(7)');
                 
                 await page.waitForSelector('div.button-action button', { timeout: 0 });
                 await page.click('div.button-action button');
 
-                await page.close();
-                await browser.close();
+                //await page.close();
+                //await browser.close();
             }
             const falla =  await deployBrowser(username, password, true);
 
@@ -381,7 +482,8 @@ app.get('/deployBrowser', async (req, res) => {
         
         if(browserStatus && browserStatus.status === false){
             console.log('Navegador desplegado correctamente');
-            res.status(200).json({ message: 'Navegador desplegado correctamente' });
+            serviceStatus = { status: 200, message: 'Servicio disponible' };
+            res.status(200).json({ message: 'Navegador desplegado correctamente', argg:'credenciales correctas', points:'N/A' });
         }else{
             console.log('Error al desplegar el navegador');
             console.log('---------------------------');
@@ -390,7 +492,7 @@ app.get('/deployBrowser', async (req, res) => {
             console.log('browserStatus:', browserStatus);
             console.log('---------------------------');
             console.log('---------------------------');
-            res.status(503).json({ message: browserStatus.argg, reason: 'no han pasado 3 min desde que se cerro el navegador o los son datos incorrectos' });
+            res.status(503).json({ message: browserStatus.message, argg:browserStatus.argg , points: 'no han pasado 3 min desde que se cerro el navegador o los son datos incorrectos' });
         }
     }catch(error){
         console.error('Error al desplegar el navegador:', error);
@@ -403,8 +505,10 @@ app.get('/turnOff', async (req, res) => {
     try {
 
         if(!page.isClosed()){
+
             await page.close();
             await browser.close();
+            serviceStatus = { status: 503, message: 'Servicio no disponible' };
             console.log('navegador apagado correctamente');
             res.status(200).json({ message: 'Navegador apagado correctamente, espere 3 minutos minimo para volver a inicar' });
         }else{
@@ -421,15 +525,7 @@ app.get('/turnOff', async (req, res) => {
 
 app.post('/Verify', async (req, res) => {
 
-    console.log('--------------------------')
-    console.log('--------------------------')
-    console.log('--------------------------')
-    console.log(typeof browser.isConnected())
-    console.log('--------------------------')
-    console.log('--------------------------')
-    console.log('--------------------------')
-
-    if(browser.isConnected() !== undefined){
+    if(serviceStatus.status !== 503){
 
         let { rawreferencia, rawmonto } = req.body;
         let referencia = rawreferencia.toString();
@@ -532,6 +628,21 @@ app.get('/logs', async (req, res) => {
     }
 });
 
+app.get('/checkStatus',async (req, res) => {
+    try {
+
+        if(serviceStatus.status == 200 ){
+
+            res.status(200).json( serviceStatus );
+        }else{
+            res.status(503).json( serviceStatus );
+        }
+
+    } catch (error) {
+        console.error('Error al verificar el servidor:', error);
+        res.status(500).json({ message: 'Error al verificar el servidor' });
+    }
+});
 
 app.post('/editLog', async (req, res) => {
     try {
