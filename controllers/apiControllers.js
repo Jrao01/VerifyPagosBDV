@@ -4,7 +4,8 @@ import fs from 'fs';
 import puppeteer from 'puppeteer-extra'; // puppeteer-extra >>>>>>> puppeteer
 import stealth from 'puppeteer-extra-plugin-stealth';
 import anonymizer from 'puppeteer-extra-plugin-anonymize-ua';
-
+import nodemailer from 'nodemailer';
+//qwsk hytw axwz zmaa
 puppeteer.use(stealth());
 puppeteer.use(anonymizer());
 
@@ -12,13 +13,27 @@ let browser;
 let page;
 let nPagoV = 0;
 let nPagoR = 0;
-let serviceStatus = { status: 503, message: 'Servicio no disponible' };
+let serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
 let interruptor = false;
 let credenciales = {
     username: 'prueba',
     password: 'prueba'
 }
 
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'julianrafael1604@gmail.com', 
+    pass: 'qwskhytwaxwzzmaa', 
+  },
+});
+
+const mailOptions = {
+  from: '"Julian Amer Y Randis Graterl" <julianrafael1604@gmail.com>',
+  to: 'sossarifa@gmail.com',
+  subject: 'Reporte de satus y actividades del servicio de verificacion de Pagos al BDV',
+  text: ''
+};
 
 let refreshAttempts = 0;
 const MAX_REFRESH_ATTEMPTS = 3;
@@ -77,47 +92,27 @@ const browserInit = async () => {
         
             const check = await page.goto('https://bdvenlinea.banvenez.com/', { waitUntil: 'load', timeout: 0 });
         
-
             const status = await check.status();
             console.log('status:', status);
 
                 if(status === 200){
                     serviceStatus = { status: 200, message: 'Servicio disponible' };
-                    // Load localStorage // Cambia la ruta para Render
-                    /*const localStoragePath = 'localStorage.json'; 
-                    if (fs.existsSync(localStoragePath)) {
-                        try {
-                            const localStorageData = fs.readFileSync(localStoragePath, 'utf8');
-                            if (localStorageData) {
-                                await page.evaluate(data => {
-                                    const entries = JSON.parse(data);
-                                    for (let [key, value] of Object.entries(entries)) {
-                                        localStorage.setItem(key, value);
-                                    }
-                                }, localStorageData);
-                            }
-                        } catch (error) {
-                            console.error('Error parsing localStorage.json:', error);
-                        }
-                    }*/
-        
+                    
                     page.setRequestInterception(true);
                     page.on('request', (request) => {
                         if (request.resourceType() === 'document' || request.resourceType() === 'script') {
                             request.continue();
                         } else {
-                            request.abort();
+                            request.continue();
+                            //request.abort();
                         }
                     });
                 }else{
                     console.log('Error al cargar la página due status:', status);
-                    serviceStatus = { status: 503, message: 'Servicio no disponible' };
+                    serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
                     await browser.close();
                 }
-
-
 }
-
 
 const refreshSession = async () => {
     try {
@@ -126,13 +121,20 @@ const refreshSession = async () => {
             console.log('starting to Refresh session...');
             console.log(serviceStatus)
             const check = await page.goto('https://bdvenlinea.banvenez.com/', { waitUntil: 'load', timeout: 0 });
-            //const status = await check.status();
-            //console.log('status:', status);
-
-            if (/*status === 200 ||*/ process === 'refreshing' ) {
+            const status = await check.status();
+            console.log('status:', status);
+            if (check ) {
+                                    
+                    page.setRequestInterception(true);
+                    page.on('request', (request) => {
+                        if (request.resourceType() === 'document' || request.resourceType() === 'script') {
+                            request.continue();
+                        } else {
+                            request.continue();
+                            //request.abort();
+                        }
+                    });
                 refreshAttempts = 0; // reset counter
-////////////////////
-
 
                     try{
                         console.log('Esperando a que cargue mat-button ');
@@ -154,48 +156,6 @@ const refreshSession = async () => {
                         console.log('Intentando de nuevo...');
                         await refreshSession()
                     }
-
-
-////////////////////
-/*
-                try {
-                    console.log('esperando por td mat-icon en refresh')
-                    console.log('esperando por td mat-icon en refresh')
-                    console.log('esperando por td mat-icon en refresh')
-                    await page.waitForSelector('td mat-icon', { timeout: 2000 });
-                    //await delay(300);
-                    await page.click('td mat-icon');
-                    console.log('clickeado td mat-icon en refresh')
-                    console.log('clickeado td mat-icon en refresh')
-                    console.log('clickeado td mat-icon en refresh')
-                    try {
-                        await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 2000 });
-                        serviceStatus = { status: 200, message: 'Servicio disponible' };
-                        console.log('Session refreshed');
-                    } catch (error) {
-                        console.error('Error al cargar el input de busqueda :', error);
-                        if (++refreshAttempts < MAX_REFRESH_ATTEMPTS) {
-                            console.log('Intentando de nuevo...');
-                            await refreshSession();
-                        } else {
-                            console.error('Máximo de intentos de refresco alcanzado');
-                            await page.close();
-                            await browser.close();
-                            serviceStatus = { status: 503, message: 'Servicio no disponible' };
-                            refreshAttempts = 0;
-                        }
-                    }
-                } catch (error) {
-                    console.error('mat-button no encontrado:', error);
-                    try {
-                        await page.reload();
-                        //await delay(300);
-                        await page.waitForSelector('td mat-icon', { timeout: 3000 });
-                        await page.click('td mat-icon');
-                    } catch (reloadError) {
-                        console.error('Error tras recargar la página:', reloadError);
-                    }
-                }*/
             } else {
                 console.log('Error al cargar la página due status:');
                 if (++refreshAttempts < MAX_REFRESH_ATTEMPTS) {
@@ -205,7 +165,7 @@ const refreshSession = async () => {
                     refreshAttempts = 0;
                         await page.close();
                         await browser.close();
-                        serviceStatus = { status: 503, message: 'Servicio no disponible' };
+                        serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
                 }
             }
         } else {
@@ -214,11 +174,11 @@ const refreshSession = async () => {
         }
     } catch (error) {
         console.error('Error refreshing session:', error);
-            console.error('Máximo de intentos de refresco alcanzado');
+            //console.error('Máximo de intentos de refresco alcanzado');
             refreshAttempts = 0;
             await page.close();
             await browser.close();
-            serviceStatus = { status: 503, message: 'Servicio no disponible' };
+            serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
     }
 };
 
@@ -244,7 +204,7 @@ const Login = async (username,password, testing)=>{
                     
                     let checkingCreds = await page.evaluate(() => {
                         let rechazo = document.querySelector('button.mat-button span.mat-button-wrapper') ? document.querySelector('button.mat-button span.mat-button-wrapper').innerText : "accediendo";
-                        if (rechazo.includes('Salir') ){
+                        if (rechazo == ' Salir ' || rechazo.includes('Salir') ){
                             console.log('------------------------------')
                             console.log('------------------------------')
                             console.log('------------------------------')
@@ -270,7 +230,7 @@ const Login = async (username,password, testing)=>{
                     if (checkingCreds.status == true){
                         await page.close()
                         await browser.close();
-                        serviceStatus = { status: 503, message: 'Servicio no disponible' };
+                        serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
                         return checkingCreds;
                         ///await delay(20000);
                     }
@@ -288,7 +248,7 @@ const Login = async (username,password, testing)=>{
                                 console.log('inicio de sesion de testeo exitoso, cerrando navegador');
                                 await page.close();
                                 await browser.close();
-                                serviceStatus = { status: 503, message: 'Servicio no disponible' };
+                                serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
                             }else{
                                 serviceStatus = { status: 200, message: 'Servicio  disponible' };
                             }
@@ -310,14 +270,14 @@ const Login = async (username,password, testing)=>{
                 }catch(error){
                     console.error('Error al iniciar sesión:', error);
                     console.log('Error al iniciar sesiónnnnn');
-                    serviceStatus = { status: 503, message: 'Servicio no disponible' };
+                    serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
                     return checkingCreds 
                 }
 
             } catch (error) {
                 console.error(error);
                 console.log('Error al iniciar sesión, revisa las credenciales');
-                serviceStatus = { status: 503, message: 'Servicio no disponible' };
+                serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
                 //await browser.close();
                 //return fail = true;
             }
@@ -331,11 +291,9 @@ const deployBrowser = async (username, password, testing) => {
         console.log('revisando credenciales......');
         credenciales = await Credenciales.findOne({where: {id: 1}}) 
         if(credenciales /*|| credenciales.username !== 'prueba' && credenciales.password !== 'prueba'*/){
-            //res.status(200).json({message: 'Credenciales encontradas', credenciales});
             console.log('Credenciales encontradas, iniciando navegador...'/*, credenciales,  /*credenciales.username, '  ' , credenciales.password*/ );
             interruptor = true;
         }else{
-            //res.status(404).json({message: 'No se encontraron credenciales o hay más de una'});
             console.log('No se encontraron credenciales o hay más de una', credenciales);
             return {status: true, message: ' registre credenciales y luego inicie el servicio', argg : 'No se encontraron credenciales'};
         }
@@ -373,33 +331,85 @@ const deployBrowser = async (username, password, testing) => {
     }
 };
 
-//deployBrowser(credenciales.username, credenciales.password, true)
-
 export const registerCredenciales = async (req, res) => {
-    try{
+    try {
         const { username, password } = req.body;
-        await Credenciales.create({username, password});
-        if(interruptor === true){
+        
+        if (interruptor === true) {
             browser.close();
         }
-            const falla =  await deployBrowser(username, password, true);
+        
+        const falla = await deployBrowser(username, password, true);
+        
+        if (falla && falla.status === false) {
+            
+            await Credenciales.create({
+                username,
+                password
+            });
+            
 
-            if (falla  && falla.status === false ){
-                console.log(falla.status)
-                console.log('Credenciales registradas correctamente');
-                res.status(200).json({status:200, message: 'Credenciales registradas y verificadas correctamente' });
-            }else{
-                console.log(falla.status)
-                console.log('error al registrar las credenciales');
-                res.status(500).json({status:500, message: 'error al registrar las credenciales'  });
-            }
+            mailOptions.text = `Acción: Registrar Credenciales
+            respuesta: Credenciales registradas y encriptadas correctamente
+            Status del servicio: ${serviceStatus.message}`;
 
-    }catch(error){
-        console.error(error);
-        console.log('Error al registrar credenciales',);
-        res.status(500).json({ message: 'Error al registrar credenciales', });
-}
-}
+            transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                console.log('Error al enviar:', error);
+              } else {
+                console.log('Correo enviado:', info.response);
+              }
+            });
+
+            console.log('Credenciales registradas y encriptadas correctamente');
+            res.status(200).json({
+                status: 200,
+                message: 'Credenciales registradas, verificadas y encriptadas'
+            });
+        } else {
+
+
+            mailOptions.text = `
+            Acción: Registrar Credenciales
+            respuesta: Error al verificar las credenciales
+            Status del servicio: ${serviceStatus.message}`;
+
+            transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                console.log('Error al enviar:', error);
+              } else {
+                console.log('Correo enviado:', info.response);
+              }
+            });
+
+            console.log('Error al verificar las credenciales');
+            res.status(500).json({
+                status: 500,
+                message: 'Error al verificar las credenciales'
+            });
+        }
+    } catch (error) {
+
+
+            mailOptions.text = `
+            Acción: Registrar Credenciales
+            respuesta: Error al registrar credenciales
+            Status del servicio: ${serviceStatus.message}`;
+
+            transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                console.log('Error al enviar:', error);
+              } else {
+                console.log('Correo enviado:', info.response);
+              }
+            });
+
+        console.error('Error al registrar credenciales:', error);
+        res.status(500).json({
+            message: 'Error interno del servidor'
+        });
+    }
+};
 
 export const editCreds =  async (req, res) => {
     try{
@@ -431,25 +441,81 @@ export const editCreds =  async (req, res) => {
 
             if (falla  && falla.status === false ){
                 console.log(falla.status)
+                serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
+
+                
+                mailOptions.text = `
+                Acción: Editar Credenciales
+                respuesta: Credenciales editadas y verificadas correctamente
+                Status del servicio: ${serviceStatus.message}`;
+
+                transporter.sendMail(mailOptions, (error, info) => {
+                  if (error) {
+                    console.log('Error al enviar:', error);
+                  } else {
+                    console.log('Correo enviado:', info.response);
+                  }
+                });
+
                 console.log('Credenciales editadas y verificadas correctamente');
-                serviceStatus = { status: 503, message: 'Servicio no disponible' };
                 res.status(200).json({status:200, message: 'Credenciales editadas y verificadas correctamente' })
             }else{
                 console.log(falla.status)
                 console.log('Error al iniciar sesión con las nuevas credenciales');
-                serviceStatus = { status: 503, message: 'Servicio no disponible' };
+                serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
+                mailOptions.text = `
+                Acción: Editar Credenciales
+                respuesta: Error al iniciar sesión con las nuevas credenciales
+                Status del servicio: ${serviceStatus.message}`;
+
+                transporter.sendMail(mailOptions, (error, info) => {
+                  if (error) {
+                    console.log('Error al enviar:', error);
+                  } else {
+                    console.log('Correo enviado:', info.response);
+                  }
+                });
+
                 res.status(500).json({status:500, message: 'Error al iniciar sesión con las nuevas credenciales',  });
             }
 
         }catch(error){
-            console.error('Error al cerrar sesión:', error);
-            console.log('Error al cerrar sesión');
-            res.status(500).json({status:500, message: 'Error al cerrar sesión' });
+            console.error('Error al cerrar sesión luego de editar credenciales:', error);
+            console.log('Error al cerrar sesión luego de editar credenciales');
+            serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
+
+                            mailOptions.text = `
+                Acción: Editar Credenciales
+                respuesta: Error al cerrar sesión luego de editar credenciales
+                Status del servicio: ${serviceStatus.message}`;
+
+                transporter.sendMail(mailOptions, (error, info) => {
+                  if (error) {
+                    console.log('Error al enviar:', error);
+                  } else {
+                    console.log('Correo enviado:', info.response);
+                  }
+                });
+
+            res.status(500).json({status:500, message: 'Error al cerrar sesión luego de editar credenciales' });
         }
-        
-        //res.status(200).json({ message: 'Credenciales editadas correctamente' });
     }catch(error){
         console.error(error);
+        
+                serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
+                mailOptions.text = `
+                Acción: Editar Credenciales
+                respuesta: Error al editar credenciales
+                Status del servicio: ${serviceStatus.message}`;
+
+                transporter.sendMail(mailOptions, (error, info) => {
+                  if (error) {
+                    console.log('Error al enviar:', error);
+                  } else {
+                    console.log('Correo enviado:', info.response);
+                  }
+                });
+
         console.log('Error al editar credenciales',);
         res.status(500).json({status:500, message: 'Error al editar credenciales', });
     }
@@ -460,11 +526,54 @@ export const getCreds = async (req, res) => {
         const credenciales = await Credenciales.findOne({ where: { id: 1 } });  
         if (credenciales) {
             credenciales.status = 200;
+
+            
+                            mailOptions.text = `
+                Acción: Obtener Credenciales
+                respuesta: Credenciales Obtenidas exitosamente
+                Status del servicio: ${serviceStatus.message}`;
+
+                transporter.sendMail(mailOptions, (error, info) => {
+                  if (error) {
+                    console.log('Error al enviar:', error);
+                  } else {
+                    console.log('Correo enviado:', info.response);
+                  }
+                });
+
             res.status(200).json(credenciales);
         } else {
+
+                            mailOptions.text = `
+                Acción: Obtener Credenciales
+                respuesta: No se encontraron credenciales
+                Status del servicio: ${serviceStatus.message}`;
+
+                transporter.sendMail(mailOptions, (error, info) => {
+                  if (error) {
+                    console.log('Error al enviar:', error);
+                  } else {
+                    console.log('Correo enviado:', info.response);
+                  }
+                });
+
             res.status(404).json({ status:404,message: 'No se encontraron credenciales' });
         }
     } catch (error) {
+        
+                                    mailOptions.text = `
+                Acción: Obtener Credenciales
+                respuesta: Error al obtener las credenciales
+                Status del servicio: ${serviceStatus.message}`;
+
+                transporter.sendMail(mailOptions, (error, info) => {
+                  if (error) {
+                    console.log('Error al enviar:', error);
+                  } else {
+                    console.log('Correo enviado:', info.response);
+                  }
+                });
+
         console.error('Error al obtener las credenciales:', error);
         res.status(500).json({ status:500,message: 'Error al obtener las credenciales' });
     }
@@ -477,6 +586,20 @@ export const deploy = async (req, res) => {
         if(browserStatus && browserStatus.status === false){
             console.log('Navegador desplegado correctamente');
             serviceStatus = { status: 200, message: 'Servicio disponible' };
+
+                mailOptions.text = `
+                Acción: Encendido del servicio
+                respuesta: Navegador desplegado correctamente
+                Status del servicio: ${serviceStatus.message}`;
+
+                transporter.sendMail(mailOptions, (error, info) => {
+                  if (error) {
+                    console.log('Error al enviar:', error);
+                  } else {
+                    console.log('Correo enviado:', info.response);
+                  }
+                });
+
             res.status(200).json({status:200, message: 'Navegador desplegado correctamente', argg:'credenciales correctas', points:'N/A' });
         }else{
             console.log('Error al desplegar el navegador');
@@ -486,11 +609,43 @@ export const deploy = async (req, res) => {
             console.log('browserStatus:', browserStatus);
             console.log('---------------------------');
             console.log('---------------------------');
-            res.status(503).json({status:503, message: browserStatus.message, argg:browserStatus.argg , points: 'no han pasado 3 min desde que se cerro el navegador o los son datos incorrectos' });
+            serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
+
+                mailOptions.text = `
+                Acción: Encendido del servicio
+                respuesta: error, no han pasado 3 min desde que se cerro el navegador o los son datos incorrectos
+                Status del servicio: ${serviceStatus.message}`;
+
+                transporter.sendMail(mailOptions, (error, info) => {
+                  if (error) {
+                    console.log('Error al enviar:', error);
+                  } else {
+                    console.log('Correo enviado:', info.response);
+                  }
+                });
+
+            res.status(503).json({status:503, message: browserStatus.message, argg:browserStatus.argg , points: 'error, no han pasado 3 min desde que se cerro el navegador o los son datos incorrectos' });
         }
     }catch(error){
         console.error('Error al desplegar el navegador:', error);
         console.log('Error al desplegar el navegador');
+        serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
+
+        
+                mailOptions.text = `
+                Acción: Encendido del servicio
+                respuesta:Error al desplegar el servicio
+                Status del servicio: ${serviceStatus.message}`;
+
+                transporter.sendMail(mailOptions, (error, info) => {
+                  if (error) {
+                    console.log('Error al enviar:', error);
+                  } else {
+                    console.log('Correo enviado:', info.response);
+                  }
+                });
+
+
         res.status(500).json({ status:500,message: 'Error al desplegar el navegador', reason: 'Error en el servidor' });
     }
 }
@@ -498,8 +653,7 @@ export const deploy = async (req, res) => {
 export const shutDown =  async (req, res) => {
     try {
 
-        if(!page.isClosed()){
-            
+        if(serviceStatus && serviceStatus.status === 200){
                 await page.waitForSelector('div.col button.mat-button',{ timeout: 0 });
                 await page.click('div.col button.mat-button');
 
@@ -510,18 +664,54 @@ export const shutDown =  async (req, res) => {
                 await page.click('div.button-action button');
             await page.close();
             await browser.close();
-            serviceStatus = { status: 503, message: 'Servicio no disponible' };
+            serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
             console.log('navegador apagado correctamente');
+
+
+            mailOptions.text = `
+            Acción: Apagar servicio
+            respuesta:Navegador apagado correctamente, espere 3 minutos minimo para volver a inicar
+            Status del servicio: ${serviceStatus.message}`;
+            transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                console.log('Error al enviar:', error);
+              } else {
+                console.log('Correo enviado:', info.response);
+              }
+            });
+
             res.status(200).json({status:200, message: 'Navegador apagado correctamente, espere 3 minutos minimo para volver a inicar' });
         }else{
             console.log('No hay navegador activo para apagar');
-            res.status(404).json({status:404, message: 'No hay navegador activo para apagar' });
+            mailOptions.text = `
+            Acción: Apagar servicio
+            respuesta:No hay Servicio activo para apagar
+            Status del servicio: ${serviceStatus.message}`;
+            transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                console.log('Error al enviar:', error);
+              } else {
+                console.log('Correo enviado:', info.response);
+              }
+            });
+            res.status(200).json({status:205, message: 'No hay navegador activo para apagar' });
         }
 
     }catch (error) {
-        console.log('Error al apagar el servidor');
+        console.log('Error al apagar el servicio');
+        mailOptions.text = `
+            Acción: Apagar servicio
+            respuesta: Error al apagar el servicio
+            Status del servicio: ${serviceStatus.message}`;
+            transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                console.log('Error al enviar:', error);
+              } else {
+                console.log('Correo enviado:', info.response);
+              }
+            });
         console.error(error);
-        res.status(500).json({status:500, message: 'Error al apagar el servidor' });
+        res.status(500).json({status:500, message: 'Error al apagar el servicio' });
     }
 }
 
@@ -541,7 +731,19 @@ export const verify = async (req, res) => {
             } catch (error) {
                 console.error(error);
                 console.log('Error en la referencia: ', referencia);
-                res.status(500).json({status:500, message: 'intenta de nuevo por favor' });
+
+                mailOptions.text = `
+            Acción: Verificar Pago
+            respuesta: Error al buscar la referencia ${referencia}
+            Status del servicio: ${serviceStatus.message}`;
+            transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                console.log('Error al enviar:', error);
+              } else {
+                console.log('Correo enviado:', info.response);
+              }
+            });
+                res.status(500).json({status:500, message: `Error al buscar la referencia ${referencia} intenta de nuevo por favor` });
             }
 
         let collectedData = await page.evaluate(() => {
@@ -578,6 +780,18 @@ export const verify = async (req, res) => {
             console.log('pagos totales', nPagoV + nPagoR);
             console.log('------------------------');
             
+            mailOptions.text = `
+            Acción: Verificar Pago
+            respuesta: Pago verificado ${collectedData.RefRecibida}, monto: ${collectedData.montorecibido}
+            Status del servicio: ${serviceStatus.message}`;
+            transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                console.log('Error al enviar:', error);
+              } else {
+                console.log('Correo enviado:', info.response);
+              }
+            });
+
             res.status(200).json(collectedData);
             await Logs.create({
                 status: collectedData.status,
@@ -598,7 +812,20 @@ export const verify = async (req, res) => {
             console.log('pagos Rechazados', nPagoR);
             console.log('pagos totales', nPagoV + nPagoR);
             console.log('--------------------------');
-            res.status(404).json(collectedData);
+
+            mailOptions.text = `
+            Acción: Verificar Pago
+            respuesta: Pago Rechazado, descartar o revisar manualmente ${collectedData.RefRecibida}, monto: ${collectedData.montorecibido}
+            Status del servicio: ${serviceStatus.message}`;
+            transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                console.log('Error al enviar:', error);
+              } else {
+                console.log('Correo enviado:', info.response);
+              }
+            });
+
+            res.status(503).json(collectedData);
                 await Logs.create({
                 status: collectedData.status,
                 fecha: collectedData.fecha,
@@ -611,20 +838,72 @@ export const verify = async (req, res) => {
     } catch (error) {
         console.error(error);
         console.log('Error en la referencia: ', referencia);
+                    mailOptions.text = `
+            Acción: Verificar Pago
+            respuesta: Pago Rechazado, error al buscar la referencia: ${referencia}
+            Status del servicio: ${serviceStatus.message}`;
+
+            transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                console.log('Error al enviar:', error);
+              } else {
+                console.log('Correo enviado:', info.response);
+              }
+            });
+
         res.status(500).json({ message: 'Error en la referencia', referencia: referencia });
     }
 }else{
-    res.status(503).json({ message:'servicio no disponible', reason: 'No hay navegador activo' });
+
+    mailOptions.text = `
+    Acción: Verificar Pago
+    respuesta: El servicio no está activo 
+    Status del servicio: ${serviceStatus.message}`;
+    
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log('Error al enviar:', error);
+      } else {
+        console.log('Correo enviado:', info.response);
+      }
+    });
+
     console.log('No hay navegador activo ');
+    res.status(503).json({ message:'servicio no disponible', reason: 'No hay navegador activo' });
 }
 };
 
 export const getLogs =  async (req, res) => {
     try {
         const logs = await Logs.findAll();
-        
+            mailOptions.text = `
+    Acción: Obtener Registros de Verificacion
+    respuesta: Exitoso 
+    Status del servicio: ${serviceStatus.message}`;
+    
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log('Error al enviar:', error);
+      } else {
+        console.log('Correo enviado:', info.response);
+      }
+    });
+
         res.status(200).json(logs);
     } catch (error) {
+            mailOptions.text = `
+    Acción: Obtener Registros de Verificacion
+    respuesta: Error al obtener los regsitros 
+    Status del servicio: ${serviceStatus.message}`;
+    
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log('Error al enviar:', error);
+      } else {
+        console.log('Correo enviado:', info.response);
+      }
+    });
+
         console.error('Error al obtener los logs:', error);
         res.status(500).json({ message: 'Error al obtener los logs' });
     }
@@ -633,9 +912,36 @@ export const getLogs =  async (req, res) => {
 export const checkStatus = async (req, res) => {
     try {
 
-            res.status(200).json( serviceStatus );
+    mailOptions.text = `
+    Acción: Checkeo de Status del Servicio
+    respuesta: checkeo exitoso 
+    Status del servicio: ${serviceStatus.message}`;
+    
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log('Error al enviar:', error);
+      } else {
+        console.log('Correo enviado:', info.response);
+      }
+    });
+
+    res.status(200).json( serviceStatus );
 
     } catch (error) {
+
+    mailOptions.text = `
+    Acción: Checkeo de Status del Servicio
+    respuesta: Error al verificar el servicio
+    Status del servicio: ${serviceStatus.message}`;
+    
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log('Error al enviar:', error);
+      } else {
+        console.log('Correo enviado:', info.response);
+      }
+    });
+
         console.error('Error al verificar el servicio:', error);
         res.status(500).json({ message: 'Error al verificar el servicio' });
     }
@@ -645,8 +951,34 @@ export const editLog = async (req, res) => {
     try {
         const { id, status } = req.body;
         await Logs.update({ status: status }, { where: { id: id } });
+        
+    mailOptions.text = `
+    Acción: Edicion de Registro de verificacion
+    respuesta: editado exitosamente a status ${status}, id del regsitro : ${id}
+    Status del servicio: ${serviceStatus.message}`;
+    
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log('Error al enviar:', error);
+      } else {
+        console.log('Correo enviado:', info.response);
+      }
+    });
+
         res.status(200).json({status:200, message: 'Log actualizado correctamente' });
     } catch (error) {
+            mailOptions.text = `
+    Acción: Edicion de Registro de verificacion
+    respuesta:Error al actualizar
+    Status del servicio: ${serviceStatus.message}`;
+    
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log('Error al enviar:', error);
+      } else {
+        console.log('Correo enviado:', info.response);
+      }
+    });
         console.error('Error al actualizar el log:', error);
         res.status(500).json({ status:500,message: 'Error al actualizar el log' });
     }
