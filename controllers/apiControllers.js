@@ -42,6 +42,88 @@ function delay(time) {
     return new Promise(resolve => setTimeout(resolve, time));
 }
 
+const reload = async()=>{
+
+            console.log('starting to Refresh session...');
+            serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
+            /*console.log(serviceStatus)
+            const check = await page.goto('https://bdvenlinea.banvenez.com/', { waitUntil: 'load', timeout: 0 });
+            page.setRequestInterception(true);
+            page.on('request', (request) => {
+                if (request.resourceType() === 'document' || request.resourceType() === 'script') {
+                    request.continue();
+                } else {
+                    request.continue();
+                    //request.abort();
+                }
+            });
+            const status = await check.status();
+            console.log('status:', status);*/
+            if(refreshAttempts <= 3){
+
+                await page.reload({ waitUntil: 'networkidle0', timeout: 60000 });
+                
+                //if (check && status == 200) {
+
+                    try{
+                        console.log('intento de sessionRefresh nro', refreshAttempts)
+                        console.log('Esperando a que cargue mat-button ');
+                    await page.waitForSelector('td mat-icon', { timeout: 5000 });
+                    await delay(300);
+                    await page.click('td mat-icon');
+                    
+                    try{
+                        await page.waitForSelector('input[placeholder="Buscar"]', { timeout:20000 });
+                        serviceStatus = { status: 200, message: 'Servicio disponible' };
+                                refreshAttempts = 0;
+                        }catch(error){
+                            refreshAttempts += 1;
+                            console.error('Error al cargar el input de busqueda :', error);
+                            console.log('Intentando de nuevo...');
+                            await reload()
+                        }
+                        
+                    } catch(error){
+                        refreshAttempts += 1;
+                        console.error('mat-button no encontrado:', error);
+                        console.log('Intentando de nuevo...');
+                        await reload()
+                    }
+                    /*} else {
+                        console.log('Error al cargar la página due status:');
+                if (++refreshAttempts < MAX_REFRESH_ATTEMPTS) {
+                    await refreshSession();
+                } else {
+                    console.error('Máximo de intentos de refresco alcanzado');
+                    refreshAttempts = 0;
+                        await page.close();
+                        await browser.close();
+                        serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
+                        }
+                        }*/
+                    }else{
+                        console.log('intentos maximos de refresSession aclanzados revisar manualmente, cerrando servicio ')
+                        serviceStatus = {status: 503, message:  'Servicio no disponible temporalmente, activar manualmente'}
+
+            mailOptions.text = `Acción: refrescar sesion
+            respuesta: intentos maximos de refrescar sesion aclanzados, revisar y reiniciar servicio manualmente, cerrando servicio
+            Status del servicio: ${serviceStatus.message}`;
+
+            transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                console.log('Error al enviar:', error);
+              } else {
+                console.log('Correo enviado:', info.response);
+              }
+            });
+
+                        console.log(serviceStatus)
+                        await page.close();
+                        await browser.close();
+                    }
+        }
+
+
 const browserInit = async () => {
         
             if(browser){
@@ -49,7 +131,7 @@ const browserInit = async () => {
             }
 
             browser = await puppeteer.launch({
-                headless: true, // Cambiar a true para Render
+                headless: false, // Cambiar a true para Render
                 executablePath: process.env.NODE_ENV === 'production' 
                 ? process.env.PUPPETEER_EXECUTABLE_PATH 
                 : puppeteer.executablePath(),  // Ruta de Chrome en Render
@@ -115,59 +197,10 @@ const browserInit = async () => {
 }
 
 const refreshSession = async () => {
+    
     try {
-        let process = 'refreshing'
         if (browser && browser.isConnected() && page && !page.isClosed() && serviceStatus.status === 200 ) {
-            console.log('starting to Refresh session...');
-            console.log(serviceStatus)
-            const check = await page.goto('https://bdvenlinea.banvenez.com/', { waitUntil: 'load', timeout: 0 });
-            const status = await check.status();
-            console.log('status:', status);
-            if (check ) {
-                                    
-                    page.setRequestInterception(true);
-                    page.on('request', (request) => {
-                        if (request.resourceType() === 'document' || request.resourceType() === 'script') {
-                            request.continue();
-                        } else {
-                            request.continue();
-                            //request.abort();
-                        }
-                    });
-                refreshAttempts = 0; // reset counter
-
-                    try{
-                        console.log('Esperando a que cargue mat-button ');
-                    await page.waitForSelector('td mat-icon', { timeout: 5000 });
-                    await delay(300);
-                    await page.click('td mat-icon');
-
-                        try{
-                            await page.waitForSelector('input[placeholder="Buscar"]', { timeout:20000 });
-                                serviceStatus = { status: 200, message: 'Servicio disponible' };
-                        }catch(error){
-                            console.error('Error al cargar el input de busqueda :', error);
-                            console.log('Intentando de nuevo...');
-                            await refreshSession()
-                        }
-
-                    } catch(error){
-                        console.error('mat-button no encontrado:', error);
-                        console.log('Intentando de nuevo...');
-                        await refreshSession()
-                    }
-            } else {
-                console.log('Error al cargar la página due status:');
-                if (++refreshAttempts < MAX_REFRESH_ATTEMPTS) {
-                    await refreshSession();
-                } else {
-                    console.error('Máximo de intentos de refresco alcanzado');
-                    refreshAttempts = 0;
-                        await page.close();
-                        await browser.close();
-                        serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
-                }
-            }
+            await reload()
         } else {
             console.log('no hay sesion que refrescar');
             console.log(serviceStatus);
@@ -367,7 +400,6 @@ export const registerCredenciales = async (req, res) => {
                 message: 'Credenciales registradas, verificadas y encriptadas'
             });
         } else {
-
 
             mailOptions.text = `
             Acción: Registrar Credenciales
