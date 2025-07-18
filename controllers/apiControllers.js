@@ -47,7 +47,7 @@ function delay(time) {
 const reload = async()=>{
 
             console.log('starting to Refresh session...');
-            serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
+            serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente refrescando sesion' };
             /*console.log(serviceStatus)
             const check = await page.goto('https://bdvenlinea.banvenez.com/', { waitUntil: 'load', timeout: 0 });
             page.setRequestInterception(true);
@@ -133,11 +133,11 @@ const browserInit = async () => {
             }
 
             browser = await puppeteer.launch({
-                headless: true, // Cambiar a true para Render
+                headless: false, // Cambiar a true para Render
                 executablePath: process.env.NODE_ENV === 'production' 
                 ? process.env.PUPPETEER_EXECUTABLE_PATH 
                 : puppeteer.executablePath(),  // Ruta de Chrome en Render
-                slowMo: 30,
+                //slowMo: 30,
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -277,7 +277,7 @@ const Login = async (username,password, testing)=>{
                     await page.click('td mat-icon');
 
                         try{
-                            await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 4000 });
+                            await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 8000 });
                             if (testing === true){
                                 checkingCreds.mode = 'testing';
                                 console.log('inicio de sesion de testeo exitoso, cerrando navegador');
@@ -300,6 +300,8 @@ const Login = async (username,password, testing)=>{
                         await page.reload();
                         await delay(300);
                         await page.click('td mat-icon');
+                        serviceStatus = { status: 200, message: 'Servicio  disponible' };
+                        console.log('mat-button encontrado');
                         return checkingCreds
                     }
                 }catch(error){
@@ -397,6 +399,7 @@ export const registerCredenciales = async (req, res) => {
 
             transporter.sendMail(mailOptions, (error, info) => {
               if (error) {
+
                 console.log('Error al enviar:', error);
               } else {
                 console.log('Correo enviado:', info.response);
@@ -446,8 +449,8 @@ export const registerCredenciales = async (req, res) => {
             });
 
         console.error('Error al registrar credenciales, puede que ya tenga sus credenciales cargadas:', error);
-        res.status(500).json({
-            message: 'Error interno del servidor'
+        res.status(303).json({
+            message: 'Error al registrar credenciales, puede que ya tenga sus credenciales cargadas'
         });
     }
 };
@@ -517,7 +520,7 @@ export const editCreds =  async (req, res) => {
                   }
                 });
 
-                res.status(500).json({status:500, message: 'Error al iniciar sesión con las nuevas credenciales',  });
+                res.status(303).json({status:500, message: 'Error al iniciar sesión con las nuevas credenciales',  });
             }
 
         }catch(error){
@@ -838,14 +841,24 @@ export const verify = async (req, res) => {
             });
 
             res.status(200).json(collectedData);
-            await Logs.create({
-                status: collectedData.status,
-                fecha: collectedData.fecha,
-                ref: collectedData.ref,
-                refRecibida: collectedData.RefRecibida,
-                monto: collectedData.montorecibido,
-                montoRecibido: collectedData.montorecibido
+            const [pago, created ] = await Logs.findOrCreate({
+                where: {refRecibida: collectedData.RefRecibida},
+                defaults: {
+                    status: collectedData.status,
+                    fecha: collectedData.fecha,
+                    ref: collectedData.ref,
+                    refRecibida: collectedData.RefRecibida,
+                    monto: collectedData.montorecibido,
+                    montoRecibido: collectedData.montorecibido
+                },
+                
             })
+
+            if(created === true){
+                console.log('se creo el registro', pago)
+            }else{
+                console.log('ya existia el registro de esa referencia')
+            }
         } else {
             collectedData.status = 'revisar manualmente o descartar';
             collectedData.montorecibido = monto;
@@ -870,15 +883,25 @@ export const verify = async (req, res) => {
               }
             });
 
-            res.status(503).json(collectedData);
-                await Logs.create({
-                status: collectedData.status,
-                fecha: collectedData.fecha,
-                ref: collectedData.ref,
-                refRecibida: collectedData.RefRecibida,
-                monto: collectedData.montorecibido,
-                montoRecibido: collectedData.montorecibido
+            res.status(200).json(collectedData);
+            await Logs.findOrCreate({
+                where: {refRecibida: collectedData.RefRecibida},
+                defaults: {
+                    status: collectedData.status,
+                    fecha: collectedData.fecha,
+                    ref: collectedData.ref,
+                    refRecibida: collectedData.RefRecibida,
+                    monto: collectedData.montorecibido,
+                    montoRecibido: collectedData.montorecibido
+                },
+                
             })
+            
+            if(created === true){
+                console.log('se creo el registro', pago)
+            }else{
+                console.log('ya existia el registro de esa referencia')
+            }
         }
     } catch (error) {
         console.error(error);
@@ -896,7 +919,7 @@ export const verify = async (req, res) => {
               }
             });
 
-        res.status(500).json({ message: 'Error en la referencia', referencia: referencia });
+        res.status(200).json({ status: 'Error en la referencia', referencia: referencia });
     }
 }else{
 
@@ -914,7 +937,7 @@ export const verify = async (req, res) => {
     });
 
     console.log('No hay navegador activo ');
-    res.status(503).json({ message:'servicio no disponible', reason: 'No hay navegador activo' });
+    res.status(200).json({ status:'su pago no puede ser verificado en este momento, se guardara par verificarse luego', reason: 'No hay navegador activo' });
 }
 };
 
