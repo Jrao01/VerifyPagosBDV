@@ -20,6 +20,8 @@ let credenciales = {
     password: 'prueba'
 }
 
+let intervalID
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -338,8 +340,15 @@ const deployBrowser = async (username, password, testing) => {
     if (interruptor == true){
 
         await browserInit();
-        
-            setInterval(refreshSession, 140000); 
+
+
+            if(intervalID){
+                clearInterval(intervalID)
+                intervalID = setInterval(refreshSession, 140000);
+            }else{
+                intervalID = setInterval(refreshSession, 140000); 
+            }
+
             if (testing === true ){
                 console.log('-----------------------')
                 console.log('-----------------------')
@@ -372,14 +381,14 @@ export const registerCredenciales = async (req, res) => {
             browser.close();
         }
         
+        await Credenciales.create({
+            username,
+            password
+        });
+        
         const falla = await deployBrowser(username, password, true);
         
         if (falla && falla.status === false) {
-            
-            await Credenciales.create({
-                username,
-                password
-            });
             
 
             mailOptions.text = `Acción: Registrar Credenciales
@@ -436,7 +445,7 @@ export const registerCredenciales = async (req, res) => {
               }
             });
 
-        console.error('Error al registrar credenciales:', error);
+        console.error('Error al registrar credenciales, puede que ya tenga sus credenciales cargadas:', error);
         res.status(500).json({
             message: 'Error interno del servidor'
         });
@@ -559,7 +568,7 @@ export const getCreds = async (req, res) => {
         if (credenciales) {
             credenciales.status = 200;
 
-            
+            console.log(credenciales)
                             mailOptions.text = `
                 Acción: Obtener Credenciales
                 respuesta: Credenciales Obtenidas exitosamente
@@ -699,7 +708,6 @@ export const shutDown =  async (req, res) => {
             serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
             console.log('navegador apagado correctamente');
 
-
             mailOptions.text = `
             Acción: Apagar servicio
             respuesta:Navegador apagado correctamente, espere 3 minutos minimo para volver a inicar
@@ -730,6 +738,11 @@ export const shutDown =  async (req, res) => {
         }
 
     }catch (error) {
+        //serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
+        /*if(!page.isClosed() && !browser.isClosed()){
+            await page.close();
+            await browser.close();
+        }*/
         console.log('Error al apagar el servicio');
         mailOptions.text = `
             Acción: Apagar servicio
