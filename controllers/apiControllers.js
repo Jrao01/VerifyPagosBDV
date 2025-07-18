@@ -131,7 +131,7 @@ const browserInit = async () => {
             }
 
             browser = await puppeteer.launch({
-                headless: false, // Cambiar a true para Render
+                headless: true, // Cambiar a true para Render
                 executablePath: process.env.NODE_ENV === 'production' 
                 ? process.env.PUPPETEER_EXECUTABLE_PATH 
                 : puppeteer.executablePath(),  // Ruta de Chrome en Render
