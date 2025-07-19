@@ -120,6 +120,11 @@ const reload = async()=>{
             });
 
                         console.log(serviceStatus)
+                        // Limpiar ambos almacenamientos
+await page.evaluate(() => {
+  localStorage.clear();
+  sessionStorage.clear();
+});
                         await page.close();
                         await browser.close();
                     }
@@ -129,6 +134,8 @@ const reload = async()=>{
 const browserInit = async () => {
         
             if(browser){
+                // Limpiar ambos almacenamientos
+
                 await browser.close()
             }
 
@@ -194,6 +201,11 @@ const browserInit = async () => {
                 }else{
                     console.log('Error al cargar la página due status:', status);
                     serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
+                    // Limpiar ambos almacenamientos
+                    await page.evaluate(() => {
+                      localStorage.clear();
+                      sessionStorage.clear();
+                    });
                     await browser.close();
                 }
 }
@@ -211,6 +223,11 @@ const refreshSession = async () => {
         console.error('Error refreshing session:', error);
             //console.error('Máximo de intentos de refresco alcanzado');
             refreshAttempts = 0;
+            // Limpiar ambos almacenamientos
+            await page.evaluate(() => {
+              localStorage.clear();
+              sessionStorage.clear();
+            });
             await page.close();
             await browser.close();
             serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
@@ -263,6 +280,11 @@ const Login = async (username,password, testing)=>{
                     console.log('-----------------------------');
 
                     if (checkingCreds.status == true){
+                        // Limpiar ambos almacenamientos
+                        await page.evaluate(() => {
+                          localStorage.clear();
+                          sessionStorage.clear();
+                        });
                         await page.close()
                         await browser.close();
                         serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
@@ -281,6 +303,11 @@ const Login = async (username,password, testing)=>{
                             if (testing === true){
                                 checkingCreds.mode = 'testing';
                                 console.log('inicio de sesion de testeo exitoso, cerrando navegador');
+                            // Limpiar ambos almacenamientos
+                            await page.evaluate(() => {
+                              localStorage.clear();
+                              sessionStorage.clear();
+                            });
                                 await page.close();
                                 await browser.close();
                                 serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
@@ -315,6 +342,11 @@ const Login = async (username,password, testing)=>{
                 console.error(error);
                 console.log('Error al iniciar sesión, revisa las credenciales');
                 serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
+                // Limpiar ambos almacenamientos
+                await page.evaluate(() => {
+                  localStorage.clear();
+                  sessionStorage.clear();
+                });
                 //await browser.close();
                 //return fail = true;
             }
@@ -380,6 +412,11 @@ export const registerCredenciales = async (req, res) => {
         const { username, password } = req.body;
         
         if (interruptor === true) {
+                                        // Limpiar ambos almacenamientos
+                            await page.evaluate(() => {
+                              localStorage.clear();
+                              sessionStorage.clear();
+                            });
             browser.close();
         }
         
@@ -478,6 +515,12 @@ export const editCreds =  async (req, res) => {
                 await page.waitForSelector('div.button-action button', { timeout: 0 });
                 await page.click('div.button-action button');
 
+                // Limpiar ambos almacenamientos
+                await page.evaluate(() => {
+                  localStorage.clear();
+                  sessionStorage.clear();
+                });
+
                 await page.close();
                 await browser.close();
             }
@@ -541,7 +584,7 @@ export const editCreds =  async (req, res) => {
                   }
                 });
 
-            res.status(500).json({status:500, message: 'Error al cerrar sesión luego de editar credenciales' });
+            res.status(200).json({status:500, message: 'Error al cerrar sesión luego de editar credenciales' });
         }
     }catch(error){
         console.error(error);
@@ -698,14 +741,21 @@ export const shutDown =  async (req, res) => {
     try {
 
         if(serviceStatus && serviceStatus.status === 200){
-                await page.waitForSelector('div.col button.mat-button',{ timeout: 0 });
+                /*await page.waitForSelector('div.col button.mat-button',{ timeout: 0 });
                 await page.click('div.col button.mat-button');
 
                 await page.waitForSelector('body > app-root > app-home-layout > app-menu > div > app-sidebar > mat-sidenav-container > mat-sidenav-content > app-navbar > div.navbar > div > button:nth-child(7)',{ timeout: 0 });
                 await page.click('body > app-root > app-home-layout > app-menu > div > app-sidebar > mat-sidenav-container > mat-sidenav-content > app-navbar > div.navbar > div > button:nth-child(7)');
                 
                 await page.waitForSelector('div.button-action button', { timeout: 0 });
-                await page.click('div.button-action button');
+                await page.click('div.button-action button');*/
+
+                                            // Limpiar ambos almacenamientos
+                            await page.evaluate(() => {
+                              localStorage.clear();
+                              sessionStorage.clear();
+                            });
+
             await page.close();
             await browser.close();
             serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
@@ -746,6 +796,13 @@ export const shutDown =  async (req, res) => {
             await page.close();
             await browser.close();
         }*/
+
+            // Limpiar ambos almacenamientos
+                await page.evaluate(() => {
+                  localStorage.clear();
+                  sessionStorage.clear();
+                });
+
         console.log('Error al apagar el servicio');
         mailOptions.text = `
             Acción: Apagar servicio
@@ -801,7 +858,8 @@ export const verify = async (req, res) => {
             if (importe != "N/A") {
                 let cut = importe.split('B');
                 let rawnumero = cut[0];
-                let mediumrare = rawnumero.replace(/,/, '.');
+                let mediumrare = rawnumero.replace(/[^\d,]/g, '');
+                let mediummediumrare = mediumrare.replace(/./, '');
                 let numero = parseFloat(mediumrare);
                 importeDone = numero;
             }
@@ -884,7 +942,7 @@ export const verify = async (req, res) => {
             });
 
             res.status(200).json(collectedData);
-            await Logs.findOrCreate({
+            const [pago, created ] = await Logs.findOrCreate({
                 where: {refRecibida: collectedData.RefRecibida},
                 defaults: {
                     status: collectedData.status,
