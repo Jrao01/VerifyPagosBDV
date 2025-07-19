@@ -308,6 +308,8 @@ const Login = async (username,password, testing)=>{
                               localStorage.clear();
                               sessionStorage.clear();
                             });
+                              const cookies = await page.cookies();
+  if (cookies.length > 0) await page.deleteCookie(...cookies);
                                 await page.close();
                                 await browser.close();
                                 serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
@@ -417,6 +419,8 @@ export const registerCredenciales = async (req, res) => {
                               localStorage.clear();
                               sessionStorage.clear();
                             });
+                              const cookies = await page.cookies();
+  if (cookies.length > 0) await page.deleteCookie(...cookies);
             browser.close();
         }
         
@@ -464,7 +468,7 @@ export const registerCredenciales = async (req, res) => {
             });
 
             console.log('Error al verificar las credenciales');
-            res.status(500).json({
+            res.status(200).json({
                 status: 500,
                 message: 'Error al verificar las credenciales'
             });
@@ -486,7 +490,7 @@ export const registerCredenciales = async (req, res) => {
             });
 
         console.error('Error al registrar credenciales, puede que ya tenga sus credenciales cargadas:', error);
-        res.status(303).json({
+        res.status(200).json({
             message: 'Error al registrar credenciales, puede que ya tenga sus credenciales cargadas'
         });
     }
@@ -563,7 +567,7 @@ export const editCreds =  async (req, res) => {
                   }
                 });
 
-                res.status(303).json({status:500, message: 'Error al iniciar sesión con las nuevas credenciales',  });
+                res.status(203).json({status:500, message: 'Error al iniciar sesión con las nuevas credenciales',  });
             }
 
         }catch(error){
@@ -604,7 +608,7 @@ export const editCreds =  async (req, res) => {
                 });
 
         console.log('Error al editar credenciales',);
-        res.status(500).json({status:500, message: 'Error al editar credenciales', });
+        res.status(200).json({status:500, message: 'Error al editar credenciales', });
     }
 }
 
@@ -644,7 +648,7 @@ export const getCreds = async (req, res) => {
                   }
                 });
 
-            res.status(404).json({ status:404,message: 'No se encontraron credenciales' });
+            res.status(204).json({ status:404,message: 'No se encontraron credenciales' });
         }
     } catch (error) {
         
@@ -662,12 +666,14 @@ export const getCreds = async (req, res) => {
                 });
 
         console.error('Error al obtener las credenciales:', error);
-        res.status(500).json({ status:500,message: 'Error al obtener las credenciales' });
+        res.status(200).json({ status:500,message: 'Error al obtener las credenciales' });
     }
 }   
 
 export const deploy = async (req, res) => {
     try{
+        if(serviceStatus && serviceStatus.status !== 200){
+
         const browserStatus = await deployBrowser(credenciales.username, credenciales.password, false);
         
         if(browserStatus && browserStatus.status === false){
@@ -676,8 +682,8 @@ export const deploy = async (req, res) => {
 
                 mailOptions.text = `
                 Acción: Encendido del servicio
-                respuesta: Navegador desplegado correctamente
-                Status del servicio: ${serviceStatus.message}`;
+                respuesta: Servicio desplegado correctamente
+                Status del Servicio: ${serviceStatus.message}`;
 
                 transporter.sendMail(mailOptions, (error, info) => {
                   if (error) {
@@ -687,7 +693,7 @@ export const deploy = async (req, res) => {
                   }
                 });
 
-            res.status(200).json({status:200, message: 'Navegador desplegado correctamente', argg:'credenciales correctas', points:'N/A' });
+            res.status(200).json({status:200, message: 'Servicio desplegado correctamente', argg:'credenciales correctas', points:'N/A' });
         }else{
             console.log('Error al desplegar el navegador');
             console.log('---------------------------');
@@ -700,7 +706,7 @@ export const deploy = async (req, res) => {
 
                 mailOptions.text = `
                 Acción: Encendido del servicio
-                respuesta: error, no han pasado 3 min desde que se cerro el navegador o los son datos incorrectos
+                respuesta: error, no han pasado 3 min desde que se cerro el servicio o los son datos incorrectos
                 Status del servicio: ${serviceStatus.message}`;
 
                 transporter.sendMail(mailOptions, (error, info) => {
@@ -711,8 +717,12 @@ export const deploy = async (req, res) => {
                   }
                 });
 
-            res.status(503).json({status:503, message: browserStatus.message, argg:browserStatus.argg , points: 'error, no han pasado 3 min desde que se cerro el navegador o los son datos incorrectos' });
+            res.status(203).json({status:503, points: browserStatus.argg , argg:browserStatus.message , message: 'error, espere 3 min y verifique que los datos sean correctos' });
         }
+    }else{
+        console.log('El servicio ya esta activo, no se puede desplegar de nuevo');
+        res.status(200).json({status:200, message: 'El servicio ya esta activo, no se puede desplegar de nuevo' });
+    }
     }catch(error){
         console.error('Error al desplegar el navegador:', error);
         console.log('Error al desplegar el navegador');
@@ -733,7 +743,7 @@ export const deploy = async (req, res) => {
                 });
 
 
-        res.status(500).json({ status:500,message: 'Error al desplegar el navegador', reason: 'Error en el servidor' });
+        res.status(200).json({ status:500,message: 'Error al desplegar el servicio', reason: 'Error en el servidor' });
     }
 }
 
@@ -755,6 +765,8 @@ export const shutDown =  async (req, res) => {
                               localStorage.clear();
                               sessionStorage.clear();
                             });
+            const cookies = await page.cookies();
+  if (cookies.length > 0) await page.deleteCookie(...cookies);
 
             await page.close();
             await browser.close();
@@ -773,7 +785,7 @@ export const shutDown =  async (req, res) => {
               }
             });
 
-            res.status(200).json({status:200, message: 'Navegador apagado correctamente, espere 3 minutos minimo para volver a inicar' });
+            res.status(200).json({status:200, message: 'servicio apagado correctamente, espere 3 minutos minimo para volver a inicar o cambiar credenciales' });
         }else{
             console.log('No hay navegador activo para apagar');
             mailOptions.text = `
@@ -787,7 +799,7 @@ export const shutDown =  async (req, res) => {
                 console.log('Correo enviado:', info.response);
               }
             });
-            res.status(200).json({status:205, message: 'No hay navegador activo para apagar' });
+            res.status(200).json({status:200, message: 'El servicio ya esta apagado' });
         }
 
     }catch (error) {
@@ -816,7 +828,7 @@ export const shutDown =  async (req, res) => {
               }
             });
         console.error(error);
-        res.status(500).json({status:500, message: 'Error al apagar el servicio' });
+        res.status(200).json({status:500, message: 'Error al apagar el servicio' });
     }
 }
 
@@ -848,7 +860,7 @@ export const verify = async (req, res) => {
                 console.log('Correo enviado:', info.response);
               }
             });
-                res.status(500).json({status:500, message: `Error al buscar la referencia ${referencia} intenta de nuevo por favor` });
+                res.status(200).json({status:500, message: `Error al buscar la referencia ${referencia} intenta de nuevo por favor` });
             }
 
         let collectedData = await page.evaluate(() => {
@@ -995,7 +1007,7 @@ export const verify = async (req, res) => {
     });
 
     console.log('No hay navegador activo ');
-    res.status(200).json({ status:'su pago no puede ser verificado en este momento, se guardara par verificarse luego', reason: 'No hay navegador activo' });
+    res.status(200).json({ status:'su pago no puede ser verificado en este momento, se guardara par verificarse luego', reason: 'No hay servicio activo' });
 }
 };
 
@@ -1031,7 +1043,7 @@ export const getLogs =  async (req, res) => {
     });
 
         console.error('Error al obtener los logs:', error);
-        res.status(500).json({ message: 'Error al obtener los logs' });
+        res.status(200).json({ message: 'Error al obtener los logs' });
     }
 };
 
@@ -1069,7 +1081,7 @@ export const checkStatus = async (req, res) => {
     });
 
         console.error('Error al verificar el servicio:', error);
-        res.status(500).json({ message: 'Error al verificar el servicio' });
+        res.status(200).json({ message: 'Error al verificar el servicio' });
     }
 };
 
@@ -1106,7 +1118,7 @@ export const editLog = async (req, res) => {
       }
     });
         console.error('Error al actualizar el log:', error);
-        res.status(500).json({ status:500,message: 'Error al actualizar el log' });
+        res.status(200).json({ status:500,message: 'Error al actualizar el log' });
     }
 };
 
