@@ -7,7 +7,7 @@
   },
   "keywords": [],
   "author": "Jamer A.K.A Data Stealer",
-  "license": "ISC",
+  "license": "ISC",   
   "description": "api de verificacion de pago movil al banco de venezuela, priximas versiones incluirán mas bancos",
   "type": "module",
   "dependencies": {

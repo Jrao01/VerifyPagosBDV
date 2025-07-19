@@ -104,6 +104,7 @@ const reload = async()=>{
                         }
                         }*/
                     }else{
+                        refreshAttempts = 0;
                         console.log('intentos maximos de refresSession aclanzados revisar manualmente, cerrando servicio ')
                         serviceStatus = {status: 503, message:  'Servicio no disponible temporalmente, activar manualmente'}
 
