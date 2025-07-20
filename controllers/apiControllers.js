@@ -5,7 +5,40 @@ import puppeteer from 'puppeteer-extra'; // puppeteer-extra >>>>>>> puppeteer
 import stealth from 'puppeteer-extra-plugin-stealth';
 import anonymizer from 'puppeteer-extra-plugin-anonymize-ua';
 import nodemailer from 'nodemailer';
-//qwsk hytw axwz zmaa
+
+import crypto from 'crypto';
+
+// Configuración de encriptación
+const ENCRYPTION_KEY = "una_clave_secreta_muy_larga_y_compleja_de_al_menos_32_bytes"; // 32+ caracteres
+const IV_LENGTH = 16;
+
+function encrypt(text) {
+    const iv = crypto.randomBytes(IV_LENGTH);
+    // Generar clave de 32 bytes usando SHA-256
+    const key = crypto.createHash('sha256')
+                     .update(ENCRYPTION_KEY)
+                     .digest()
+                     .slice(0, 32);  // Asegurar 32 bytes
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return `${iv.toString('hex')}:${encrypted}`;
+}
+
+function decrypt(text) {
+    const [ivHex, encryptedHex] = text.split(':');
+    const iv = Buffer.from(ivHex, 'hex');
+    // Generar clave de 32 bytes usando SHA-256
+    const key = crypto.createHash('sha256')
+                     .update(ENCRYPTION_KEY)
+                     .digest()
+                     .slice(0, 32);  // Asegurar 32 bytes
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+    let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+}
+
 puppeteer.use(stealth());
 puppeteer.use(anonymizer());
 
@@ -63,7 +96,16 @@ const reload = async()=>{
             console.log('status:', status);*/
             if(refreshAttempts <= 3){
 
-                await page.reload({ waitUntil: 'networkidle0', timeout: 60000 });
+                try{
+
+                    await page.reload({ waitUntil: 'networkidle0', timeout: 60000 });
+
+                }catch(error){
+                    console.error('Error al recargar la página:', error);
+                    console.log('Error al recargar la página, intentando de nuevo...');
+                    await deployBrowser(credenciales.username, credenciales.password, false); 
+                    return;
+                }
                 
                 //if (check && status == 200) {
 
@@ -358,12 +400,18 @@ const Login = async (username,password, testing)=>{
 
 const deployBrowser = async (username, password, testing) => {
     let timer = 0;
+    
+                let decryptedUsername 
+                let decryptedPassword 
 
     try{
         console.log('revisando credenciales......');
         credenciales = await Credenciales.findOne({where: {id: 1}}) 
-        if(credenciales /*|| credenciales.username !== 'prueba' && credenciales.password !== 'prueba'*/){
-            console.log('Credenciales encontradas, iniciando navegador...'/*, credenciales,  /*credenciales.username, '  ' , credenciales.password*/ );
+
+        if(credenciales){
+            decryptedPassword = decrypt(credenciales.password);
+            decryptedUsername = decrypt(credenciales.username);
+            console.log('Credenciales encontradas, iniciando navegador...',credenciales.password,'/-/', decryptedPassword,credenciales.username,'/-/',decryptedUsername /*, credenciales,  /*credenciales.username, '  ' , credenciales.password*/ );
             interruptor = true;
         }else{
             console.log('No se encontraron credenciales o hay más de una', credenciales);
@@ -397,7 +445,7 @@ const deployBrowser = async (username, password, testing) => {
                 const tested = await Login(username, password, testing );
                 return tested;
             }else{
-                const logResult = await Login(credenciales.username, credenciales.password, testing);
+                const logResult = await Login(decryptedUsername, decryptedPassword, testing);
                 console.log('-----------------------')
                 console.log('-----------------------')
                 console.log('-----------------------')
@@ -412,7 +460,18 @@ const deployBrowser = async (username, password, testing) => {
 
 export const registerCredenciales = async (req, res) => {
     try {
+
+        const existingCreds = await Credenciales.findOne();
+        if (existingCreds) {
+            return res.status(400).json({
+                message: 'Ya existen credenciales registradas'
+            });
+        }
+
         const { username, password } = req.body;
+                // Encriptar credenciales
+        const encryptedUsername = encrypt(username);
+        const encryptedPassword = encrypt(password);
         
         if (interruptor === true) {
                                         // Limpiar ambos almacenamientos
@@ -426,8 +485,8 @@ export const registerCredenciales = async (req, res) => {
         }
         
         await Credenciales.create({
-            username,
-            password
+            username: encryptedUsername,
+            password: encryptedPassword
         });
         
         const falla = await deployBrowser(username, password, true);
@@ -507,7 +566,9 @@ export const editCreds =  async (req, res) => {
         console.log('---------------------------')
         console.log('---------------------------')
         const { username, password } = req.body;
-        await Credenciales.update({username:username,password:password},{ where: { id: 1 } }); 
+        const encryptedUsername = encrypt(username);
+        const encryptedPassword = encrypt(password);
+        await Credenciales.update({username:encryptedUsername,password:encryptedPassword},{ where: { id: 1 } }); 
         // document.querySelector('div.navbar button.mat-button span.mat-button-wrapper span') body > app-root > app-home-layout > app-menu > div > app-sidebar > mat-sidenav-container > mat-sidenav-content > app-navbar > div.navbar > div > button:nth-child(7)
         try{
             if(serviceStatus.status === 200){
@@ -616,7 +677,11 @@ export const editCreds =  async (req, res) => {
 export const getCreds = async (req, res) => {
     try {
         const credenciales = await Credenciales.findOne({ where: { id: 1 } });  
+
+        
         if (credenciales) {
+            const decryptedUsername = decrypt(credenciales.username);
+            const decryptedPassword = decrypt(credenciales.password);
             credenciales.status = 200;
 
             console.log(credenciales)
@@ -633,7 +698,7 @@ export const getCreds = async (req, res) => {
                   }
                 });
 
-            res.status(200).json(credenciales);
+            res.status(200).json({username: decryptedUsername ,password: decryptedPassword, status:200, message: 'Credenciales obtenidas exitosamente' });
         } else {
 
                             mailOptions.text = `
@@ -834,6 +899,13 @@ export const shutDown =  async (req, res) => {
 }
 
 export const verify = async (req, res) => {
+
+
+    if(serviceStatus.message === 'Servicio no disponible temporalmente refrescando sesion'){
+    
+        res.status(200).json({status:503, message: `debido procesos internos del servicio, espera 20 Segundos para volver a intentar` });
+    
+    }
 
     if(serviceStatus.status !== 503){
 
