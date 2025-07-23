@@ -158,8 +158,16 @@ const reload = async()=>{
                                 console.log('-------------------')
                         }catch(error){
                           refreshAttempts += 1;
-                           await page.screenshot({ path: `./imgs/capFalloNro${refreshAttempts}.png`, fullPage: true }, {timeout: 0});
-                          console.log(`Full page screenshot saved as capFalloNro${refreshAttempts}.png`);
+                           
+                          try{
+
+                            await page.screenshot({ path: `./imgs/capFalloNro${refreshAttempts}.png`, fullPage: true }, {timeout: 3000});
+                            console.log(`Full page screenshot saved as capFalloNro${refreshAttempts}.png`);
+                          }catch(error){
+                            console.log('Error al tomar captura de pantalla:', error);
+                            console.error(error)
+                          }
+                          
                             console.error('Error al cargar el input de busqueda :', error);
                             console.log('Intentando de nuevo...');
                             await reload()
@@ -167,8 +175,14 @@ const reload = async()=>{
                         } catch(error){
                         refreshAttempts += 1;
                         console.error('mat-button no encontrado:', error);
-                         await page.screenshot({ path: `./imgs/capFalloNro${refreshAttempts}.png`, fullPage: true });
-                        console.log(`Full page screenshot saved as capFalloNro${refreshAttempts}.png`);
+                          try{
+
+                            await page.screenshot({ path: `./imgs/capFalloNro${refreshAttempts}.png`, fullPage: true }, {timeout: 3000});
+                            console.log(`Full page screenshot saved as capFalloNro${refreshAttempts}.png`);
+                          }catch(error){
+                            console.log('Error al tomar captura de pantalla:', error);
+                            console.error(error)
+                          }
                         console.log('Intentando de nuevo...');
                         await reload()
                     }
@@ -270,8 +284,6 @@ const browserInit = async () => {
         
             const status = await check.status();
             console.log('status:', status);
-            //await page.screenshot({ path: './imgs/example-fullpage.png', fullPage: true });
-            //console.log('Full page screenshot saved as example-fullpage.png');
                 if(status === 200){
                     serviceStatus = { status: 200, message: 'Servicio disponible' };
                     
