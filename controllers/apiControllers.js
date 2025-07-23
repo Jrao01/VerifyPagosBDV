@@ -7,6 +7,7 @@ import anonymizer from 'puppeteer-extra-plugin-anonymize-ua';
 import nodemailer from 'nodemailer';
 
 import crypto from 'crypto';
+import { time } from 'console';
 
 // Configuración de encriptación
 const ENCRYPTION_KEY = "una_clave_secreta_muy_larga_y_compleja_de_al_menos_32_bytes"; // 32+ caracteres
@@ -38,6 +39,32 @@ function decrypt(text) {
     decrypted += decipher.final('utf8');
     return decrypted;
 }
+
+// Función que espera hasta que serviceStatus.status sea 200
+function waitForServiceAvailable(timeout = 120000) {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    
+    // Verificar inmediatamente si ya está disponible
+    if (serviceStatus.status === 200) {
+      return resolve();
+    }
+
+    const checkInterval = setInterval(() => {
+      // Verificar si el servicio está disponible
+      if (serviceStatus.status === 200) {
+        clearInterval(checkInterval);
+        resolve();
+      }
+      // Verificar timeout
+      else if (Date.now() - startTime > timeout) {
+        clearInterval(checkInterval);
+        reject(new Error('Tiempo de espera agotado para la disponibilidad del servicio'));
+      }
+    }, 1000); // Verificar cada segundo
+  });
+}
+
 
 puppeteer.use(stealth());
 puppeteer.use(anonymizer());
@@ -98,13 +125,13 @@ const reload = async()=>{
 
                 try{
 
-                    await page.reload({ waitUntil: 'networkidle0', timeout: 60000 });
+                    await page.reload({ waitUntil: 'load', timeout: 0 });
 
                 }catch(error){
-                    console.error('Error al recargar la página:', error);
+                    console.error('Error al recargar la página en primer try de reload:', error);
                     console.log('Error al recargar la página, intentando de nuevo...');
                     await deployBrowser(credenciales.username, credenciales.password, false); 
-                    return;
+                    return 
                 }
                 
                 //if (check && status == 200) {
@@ -112,64 +139,72 @@ const reload = async()=>{
                     try{
                         console.log('intento de sessionRefresh nro', refreshAttempts)
                         console.log('Esperando a que cargue mat-button ');
-                    await page.waitForSelector('td mat-icon', { timeout: 5000 });
-                    await delay(300);
+                    await page.waitForSelector('td mat-icon', { timeout: 20000 });
                     await page.click('td mat-icon');
+
                     
                     try{
                         await page.waitForSelector('input[placeholder="Buscar"]', { timeout:20000 });
                         serviceStatus = { status: 200, message: 'Servicio disponible' };
                                 refreshAttempts = 0;
+                                console.log('-------------------')
+                                console.log('-------------------')
+                                console.log('-------------------')
+                                console.log('-------------------')
+                                console.log('refrescado con exito')
+                                console.log('-------------------')
+                                console.log('-------------------')
+                                console.log('-------------------')
+                                console.log('-------------------')
                         }catch(error){
-                            refreshAttempts += 1;
+                          refreshAttempts += 1;
+                           await page.screenshot({ path: `./imgs/capFalloNro${refreshAttempts}.png`, fullPage: true }, {timeout: 0});
+                          console.log(`Full page screenshot saved as capFalloNro${refreshAttempts}.png`);
                             console.error('Error al cargar el input de busqueda :', error);
                             console.log('Intentando de nuevo...');
                             await reload()
                         }
-                        
-                    } catch(error){
+                        } catch(error){
                         refreshAttempts += 1;
                         console.error('mat-button no encontrado:', error);
+                         await page.screenshot({ path: `./imgs/capFalloNro${refreshAttempts}.png`, fullPage: true });
+                        console.log(`Full page screenshot saved as capFalloNro${refreshAttempts}.png`);
                         console.log('Intentando de nuevo...');
                         await reload()
                     }
-                    /*} else {
-                        console.log('Error al cargar la página due status:');
-                if (++refreshAttempts < MAX_REFRESH_ATTEMPTS) {
-                    await refreshSession();
-                } else {
-                    console.error('Máximo de intentos de refresco alcanzado');
-                    refreshAttempts = 0;
-                        await page.close();
-                        await browser.close();
-                        serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
-                        }
-                        }*/
                     }else{
                         refreshAttempts = 0;
                         console.log('intentos maximos de refresSession aclanzados revisar manualmente, cerrando servicio ')
                         serviceStatus = {status: 503, message:  'Servicio no disponible temporalmente, activar manualmente'}
 
-            mailOptions.text = `Acción: refrescar sesion
-            respuesta: intentos maximos de refrescar sesion aclanzados, revisar y reiniciar servicio manualmente, cerrando servicio
-            Status del servicio: ${serviceStatus.message}`;
+                        mailOptions.text = `Acción: refrescar sesion
+                        respuesta: intentos maximos de refrescar sesion aclanzados,
+                        revisar y reiniciar servicio manualmente, cerrando servicio
+                        Status del servicio: ${serviceStatus.message}`;
 
-            transporter.sendMail(mailOptions, (error, info) => {
-              if (error) {
-                console.log('Error al enviar:', error);
-              } else {
-                console.log('Correo enviado:', info.response);
-              }
-            });
+                        transporter.sendMail(mailOptions, (error, info) => {
+                          if (error) {
+                            console.log('Error al enviar:', error);
+                          } else {
+                            console.log('Correo enviado:', info.response);
+                          }
+                        });
 
                         console.log(serviceStatus)
                         // Limpiar ambos almacenamientos
-await page.evaluate(() => {
-  localStorage.clear();
-  sessionStorage.clear();
-});
+                        await page.evaluate(() => {
+                          localStorage.clear();
+                          sessionStorage.clear();
+                        });
                         await page.close();
                         await browser.close();
+                        console.log('---------------------------');
+                        console.log('---------------------------');
+                        console.log('---------------------------');
+                        console.log('apagando browser en reload');
+                        console.log('---------------------------');
+                        console.log('---------------------------');
+                        console.log('---------------------------');
                     }
         }
 
@@ -179,7 +214,14 @@ const browserInit = async () => {
             if(browser){
                 // Limpiar ambos almacenamientos
 
-                await browser.close()
+                await browser.close();
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('apagando browser en browserInit 1');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
             }
 
             browser = await puppeteer.launch({
@@ -228,7 +270,8 @@ const browserInit = async () => {
         
             const status = await check.status();
             console.log('status:', status);
-
+            //await page.screenshot({ path: './imgs/example-fullpage.png', fullPage: true });
+            //console.log('Full page screenshot saved as example-fullpage.png');
                 if(status === 200){
                     serviceStatus = { status: 200, message: 'Servicio disponible' };
                     
@@ -250,6 +293,13 @@ const browserInit = async () => {
                       sessionStorage.clear();
                     });
                     await browser.close();
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('apagando browser en browserInit 2');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
                 }
 }
 
@@ -273,6 +323,13 @@ const refreshSession = async () => {
             });
             await page.close();
             await browser.close();
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('apagando browser en refreshSession');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
             serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
     }
 };
@@ -309,7 +366,7 @@ const Login = async (username,password, testing)=>{
                             console.log('------------------------------')
                             return {status: false, message: rechazo, argg : 'Credenciales correctas, accediendo a la cuenta'};
                         } else if(rechazo/* == ' Aceptar '*/){
-                            let argg = document.querySelector('span.ng-tns-c17-18') ? document.querySelector(/*'simple-snack-bar */'span.ng-tns-c17-18').innerText : "Error al iniciar sesión";
+                            let argg = document.querySelector('#cdk-overlay-3 > snack-bar-container > simple-snack-bar > span') ? document.querySelector(/*'simple-snack-bar */'#cdk-overlay-3 > snack-bar-container > simple-snack-bar > span').innerText : "Error al iniciar sesión";
                             return {status: true, message: rechazo, argg : argg};
                         } 
                     })
@@ -330,6 +387,13 @@ const Login = async (username,password, testing)=>{
                         });
                         await page.close()
                         await browser.close();
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('apagando browser en login 0');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
                         serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
                         return checkingCreds;
                         ///await delay(20000);
@@ -337,7 +401,7 @@ const Login = async (username,password, testing)=>{
                     
                     try{
                         console.log('Esperando a que cargue mat-button ');
-                    await page.waitForSelector('td mat-icon', { timeout: 5000 });
+                    await page.waitForSelector('td mat-icon', { timeout: 10000 });
                     await delay(300);
                     await page.click('td mat-icon');
 
@@ -355,6 +419,13 @@ const Login = async (username,password, testing)=>{
   if (cookies.length > 0) await page.deleteCookie(...cookies);
                                 await page.close();
                                 await browser.close();
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('apagando browser en login 1');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
                                 serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
                             }else{
                                 serviceStatus = { status: 200, message: 'Servicio  disponible' };
@@ -392,7 +463,14 @@ const Login = async (username,password, testing)=>{
                   localStorage.clear();
                   sessionStorage.clear();
                 });
-                //await browser.close();
+                await browser.close();
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('apagando browser en login 2');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
                 //return fail = true;
             }
     
@@ -482,6 +560,13 @@ export const registerCredenciales = async (req, res) => {
                               const cookies = await page.cookies();
   if (cookies.length > 0) await page.deleteCookie(...cookies);
             browser.close();
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('apagando browser en registerCredenciales');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
         }
         
         await Credenciales.create({
@@ -589,6 +674,13 @@ export const editCreds =  async (req, res) => {
 
                 await page.close();
                 await browser.close();
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('apagando browser en editcreds');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
             }
             const falla = await deployBrowser(username, password, true);
 
@@ -836,6 +928,13 @@ export const shutDown =  async (req, res) => {
 
             await page.close();
             await browser.close();
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('apagando browser en shutDown');
+            console.log('---------------------------');
+            console.log('---------------------------');
+            console.log('---------------------------');
             serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
             console.log('navegador apagado correctamente');
 
@@ -899,15 +998,43 @@ export const shutDown =  async (req, res) => {
 }
 
 export const verify = async (req, res) => {
-
-
-    if(serviceStatus.message === 'Servicio no disponible temporalmente refrescando sesion'){
+  // Si el servicio está refrescando, esperar a que esté disponible
+  if (serviceStatus.message === 'Servicio no disponible temporalmente refrescando sesion') {
+    console.log('Servicio refrescando, esperando disponibilidad...');
     
-        res.status(200).json({status:503, message: `debido procesos internos del servicio, espera 20 Segundos para volver a intentar` });
-    
+    try {
+      // Esperar máximo 2 minutos (120000 ms)
+      await waitForServiceAvailable(120000);
+      console.log('Servicio disponible después de espera');
+    } catch (error) {
+      console.error('Error esperando servicio:', error.message);
+      return res.status(503).json({
+        status: 503,
+        message: 'El servicio no se recuperó a tiempo'
+      });
     }
+  }
 
-    if(serviceStatus.status !== 503){
+  // Si el servicio no está disponible después de esperar
+  if (serviceStatus.status !== 200) {
+    mailOptions.text = `
+    Acción: Verificar Pago
+    respuesta: El servicio no está activo 
+    Status del servicio: ${serviceStatus.message}`;
+    
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log('Error al enviar:', error);
+      } else {
+        console.log('Correo enviado:', info.response);
+      }
+    });
+
+    console.log('No hay navegador activo ');
+    res.status(200).json({ status:'su pago no puede ser verificado en este momento, se guardara par verificarse luego', reason: 'No hay servicio activo' });
+
+  }
+    if(serviceStatus.status == 200){
 
         let { rawreferencia, rawmonto } = req.body;
         let referencia = rawreferencia.toString();
@@ -983,10 +1110,11 @@ export const verify = async (req, res) => {
               }
             });
 
-            res.status(200).json(collectedData);
-            const [pago, created ] = await Logs.findOrCreate({
+            try{
+
+              const [pago, created ] = await Logs.findOrCreate({
                 where: {refRecibida: collectedData.RefRecibida},
-                defaults: {
+              defaults: {
                     status: collectedData.status,
                     fecha: collectedData.fecha,
                     ref: collectedData.ref,
@@ -998,10 +1126,16 @@ export const verify = async (req, res) => {
             })
 
             if(created === true){
-                console.log('se creo el registro', pago)
+              console.log('se creo el registro', pago)
             }else{
-                console.log('ya existia el registro de esa referencia')
+              console.log('ya existia el registro de esa referencia')
             }
+          }catch(error){
+            console.log('error: buscando o registrando el pago  :: ', error)
+            console.error(error)
+          }
+            
+            res.status(200).json(collectedData);
         } else {
             collectedData.status = 'revisar manualmente o descartar';
             collectedData.montorecibido = monto;
@@ -1026,9 +1160,8 @@ export const verify = async (req, res) => {
               }
             });
 
-            res.status(200).json(collectedData);
             const [pago, created ] = await Logs.findOrCreate({
-                where: {refRecibida: collectedData.RefRecibida},
+              where: {refRecibida: collectedData.RefRecibida},
                 defaults: {
                     status: collectedData.status,
                     fecha: collectedData.fecha,
@@ -1036,8 +1169,7 @@ export const verify = async (req, res) => {
                     refRecibida: collectedData.RefRecibida,
                     monto: collectedData.montorecibido,
                     montoRecibido: collectedData.montorecibido
-                },
-                
+                }
             })
             
             if(created === true){
@@ -1045,6 +1177,7 @@ export const verify = async (req, res) => {
             }else{
                 console.log('ya existia el registro de esa referencia')
             }
+            res.status(200).json(collectedData);
         }
     } catch (error) {
         console.error(error);
@@ -1064,23 +1197,6 @@ export const verify = async (req, res) => {
 
         res.status(200).json({ status: 'Error en la referencia', referencia: referencia });
     }
-}else{
-
-    mailOptions.text = `
-    Acción: Verificar Pago
-    respuesta: El servicio no está activo 
-    Status del servicio: ${serviceStatus.message}`;
-    
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.log('Error al enviar:', error);
-      } else {
-        console.log('Correo enviado:', info.response);
-      }
-    });
-
-    console.log('No hay navegador activo ');
-    res.status(200).json({ status:'su pago no puede ser verificado en este momento, se guardara par verificarse luego', reason: 'No hay servicio activo' });
 }
 };
 
