@@ -497,10 +497,10 @@ const Login = async (username, password, testing) => {
         console.log('Esperando a que cargue mat-button ');
         await page.waitForSelector('td mat-icon', { timeout: 5000 });
         await delay(300);
-        await page.click('td mat-icon');
+        //await page.click('td mat-icon');
 
         try {
-          await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 5000 });
+          //await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 5000 });
           if (testing === true) {
             checkingCreds.mode = 'testing';
             console.log('inicio de sesion de testeo exitoso, cerrando navegador');
@@ -1372,7 +1372,7 @@ export const verify = async (req, res) => {
     try {
 
       try {
-        document.querySelector("#cdk-accordion-child-1 > div > app-saldoscuenta > section > div > div > table > tbody > tr > td:nth-child(3) > mat-icon");
+        //document.querySelector("#cdk-accordion-child-1 > div > app-saldoscuenta > section > div > div > table > tbody > tr > td:nth-child(3) > mat-icon");
         await page.waitForSelector('#cdk-accordion-child-1 > div > app-saldoscuenta > section > div > div > table > tbody > tr > td:nth-child(3) > mat-icon');
         await page.click('#cdk-accordion-child-1 > div > app-saldoscuenta > section > div > div > table > tbody > tr > td:nth-child(3) > mat-icon');
 
