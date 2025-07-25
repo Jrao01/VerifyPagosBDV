@@ -83,7 +83,8 @@ function CheckPageClosed() {
 
     checkInterval = setInterval(async () => {
       // Verificar si el servicio está disponible
-      if (await page.isClosed() && serviceStatus.message !== 'Servicio no disponible temporalmente refrescando , espere 20 segundos' && serviceStatus.message == 'Servicio no disponible temporalmente refrescando sesion') {
+      if (await page.isClosed() && serviceStatus.message == 'Servicio disponible') {
+        serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
         clearInterval(checkInterval);
         type = false
         console.log('falseando type')
@@ -161,10 +162,10 @@ const reload = async () => {
       console.log('intento de sessionRefresh nro', refreshAttempts)
       console.log('Esperando a que cargue mat-button ');
       await page.waitForSelector('td mat-icon', { timeout: 5000 });
-      await page.click('td mat-icon');
+      //await page.click('td mat-icon');
 
       try {
-        await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 1000 });
+        //await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 1000 });
         serviceStatus = { status: 200, message: 'Servicio disponible' };
         refreshAttempts = 0;
         console.log('-------------------')
@@ -226,23 +227,23 @@ const reload = async () => {
       }
       console.log('Intentando de nuevo...');
 
-      try{
-        await page.waitForSelector('body > div > div > div > div > div > h3:nth-child(3)',{timeout:10000})
+      try {
+        await page.waitForSelector('body > div > div > div > div > div > h3:nth-child(3)', { timeout: 10000 })
         let sClosed = await page.evaluate(() => {
           let msj = document.querySelector('body > div > div > div > div > div > h3:nth-child(3)').innerText;
-          if (msj.includes('finalizó exitosamente')){
+          if (msj.includes('finalizó exitosamente')) {
             return true
-          }else{
+          } else {
             return false
-          } 
+          }
         });
 
-        if(sClosed == true){
+        if (sClosed == true) {
           await deployBrowser('loqsea', 'loqsea', false);
-        }else{
+        } else {
           await reload()
         }
-      }catch(error){
+      } catch (error) {
         console.log('no se encontro boton de sesion cerrada')
         await reload()
       }
@@ -362,12 +363,14 @@ const browserInit = async () => {
   console.log('status:', status);
   if (status === 200) {
     serviceStatus = { status: 200, message: 'Servicio disponible' };
-    
+
     page.setRequestInterception(true);
     page.on('request', (request) => {
-      if (request.resourceType() === 'document' || request.resourceType() === 'script') {
+      if (request/*.resourceType() === 'document' || request.resourceType() === 'script'*/) {
         request.continue();
+        console.log('Intercepted request: ', request.resourceType(), '---', request.url());
       } else {
+        console.log('Intercepted request:', request.url());
         request.continue();
         //request.abort();
       }
@@ -456,11 +459,11 @@ const Login = async (username, password, testing) => {
           console.log('------------------------------')
           return { status: false, message: rechazo, argg: 'Credenciales correctas, accediendo a la cuenta' };
         } else if (rechazo == 'Aceptar' || rechazo.includes('Aceptar')) {
-          
+
           let argg = document.querySelector('#cdk-overlay-3 > snack-bar-container > simple-snack-bar > span') ? document.querySelector(/*'simple-snack-bar */'#cdk-overlay-3 > snack-bar-container > simple-snack-bar > span').innerText : "ya hay una sesion activa o credenciales incorrectas";
           return { status: true, message: rechazo, argg: argg };
-        }else {
-        let argg = 'error desconocido'
+        } else {
+          let argg = 'error desconocido'
           return { status: true, message: rechazo, argg: argg };
         }
       })
@@ -1134,8 +1137,8 @@ export const deploy = async (req, res) => {
           console.error('Error procesando teléfono para WhatsApp:', whatsappError);
         }
 
-        res.status(203).json({ status: 503, points: browserStatus.argg, argg: browserStatus.message, message: 'error, espere 3 min y verifique que los datos sean correctos' });
-      }
+        res.status(203).json({ status: 503, points: browserStatus.argg || 'error', argg: browserStatus.message, message: 'error, espere 3 min y verifique que los datos sean correctos' });
+      } 
     } else {
       console.log('El servicio ya esta activo, no se puede desplegar de nuevo');
       res.status(200).json({ status: 200, message: 'El servicio ya esta activo, no se puede desplegar de nuevo' });
@@ -1227,10 +1230,10 @@ export const shutDown = async (req, res) => {
         console.error('Error procesando teléfono para WhatsApp:', whatsappError);
       }
       if (type === true) {
-        
+
         res.status(200).json({ status: 200, message: 'servicio apagado correctamente, espere 3 minutos minimo para volver a inicar o cambiar credenciales' });
-      }else{
-        console.log('estado de type',type)
+      } else {
+        console.log('estado de type', type)
       }
     } else {
       console.log('No hay navegador activo para apagar');
@@ -1260,10 +1263,10 @@ export const shutDown = async (req, res) => {
         console.error('Error procesando teléfono para WhatsApp:', whatsappError);
       }
       if (type === true) {
-        
+
         res.status(200).json({ status: 200, message: 'servicio apagado correctamente, espere 3 minutos minimo para volver a inicar o cambiar credenciales' });
-      }else{
-        console.log('estado de type',type)
+      } else {
+        console.log('estado de type', type)
       }
     }
 
@@ -1303,12 +1306,12 @@ export const shutDown = async (req, res) => {
 
     console.error(error);
 
-      if (type === true) {
+    if (type === true) {
 
-        res.status(200).json({ status: 200, message: 'servicio apagado correctamente, espere 3 minutos minimo para volver a inicar o cambiar credenciales' });
-      }else{
-        console.log('estado de type',type)
-      }
+      res.status(200).json({ status: 200, message: 'servicio apagado correctamente, espere 3 minutos minimo para volver a inicar o cambiar credenciales' });
+    } else {
+      console.log('estado de type', type)
+    }
   }
 }
 
@@ -1376,12 +1379,24 @@ export const verify = async (req, res) => {
         await page.waitForSelector('#cdk-accordion-child-1 > div > app-saldoscuenta > section > div > div > table > tbody > tr > td:nth-child(3) > mat-icon');
         await page.click('#cdk-accordion-child-1 > div > app-saldoscuenta > section > div > div > table > tbody > tr > td:nth-child(3) > mat-icon');
 
+        // Esperar a que el spinner esté oculto o eliminado
+        await page.waitForSelector("#spinner", {
+          hidden: true,
+          timeout: 0
+        });
         await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 0 });
         await page.type('input[placeholder="Buscar"]', referencia);
       } catch (error) {
         console.error(error);
-        console.log('Error en la referencia: ', referencia);
+        console.log('Error en la referencia: ');
+        try {
 
+          await page.screenshot({ path: `./imgs/capFalloNro${refreshAttempts}.png`, fullPage: true }, { timeout: 3000 });
+          console.log(`Full page screenshot saved as capFalloNro${refreshAttempts}.png`);
+        } catch (error) {
+          console.log('Error al tomar captura de pantalla:', error);
+          console.error(error)
+        }
         mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
           `• Accion: Verificar Pago\n` +
           `• Respuesta: Error al buscar la referencia ${referencia}\n` +
@@ -1410,7 +1425,8 @@ export const verify = async (req, res) => {
 
         res.status(200).json({ status: 500, message: `Error al buscar la referencia ${referencia} intenta de nuevo por favor` });
       }
-
+      //await page.waitForSelector('mat-row mat-cell.mat-column-referencia', { timeout: 0 });
+      //await delay(300);
       let collectedData = await page.evaluate(() => {
         let ref = document.querySelector('mat-row mat-cell.mat-column-referencia') ? document.querySelector('mat-row mat-cell.mat-column-referencia').innerText : "N/A";
         let importe = document.querySelector('mat-row mat-cell.mat-column-importe') ? document.querySelector('mat-row mat-cell.mat-column-importe').innerText : "N/A";
@@ -1432,10 +1448,11 @@ export const verify = async (req, res) => {
       });
 
       await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 0 });
-      await page.$eval('input[placeholder="Buscar"]', el => el.value = '');
-      await page.waitForSelector('#mat-dialog-1 > app-modal-movimientos-cuentas > div.mat-dialog-actions > div > div > button > span', { timeout: 0 });
-      await page.click('#mat-dialog-1 > app-modal-movimientos-cuentas > div.mat-dialog-actions > div > div > button > span');
-      
+      //await delay(200);
+      //await page.$eval('input[placeholder="Buscar"]', el => el.value = '');
+      //await page.waitForSelector('#mat-dialog-1 > app-modal-movimientos-cuentas > div.mat-dialog-actions > div > div > button > span', { timeout: 1000 });
+      await page.click('div.mat-dialog-actions > div > div > button');
+
       if (collectedData.monto == monto && collectedData.ref.includes(referencia)) {
         collectedData.status = 'Validado';
         collectedData.montorecibido = monto;
@@ -1499,9 +1516,9 @@ export const verify = async (req, res) => {
         }
 
         res.status(200).json(collectedData);
-      } else if(collectedData.monto !== monto && collectedData.ref.includes(referencia)){
+      } else if (collectedData.monto !== monto && collectedData.ref.includes(referencia)) {
         ///---------///---------///---------///---------///---------///---------///---------
-        
+
         collectedData.montorecibido = monto;
         collectedData.status = `monto pagado: ${collectedData.montorecibido} Monto a pagar: ${collectedData.monto}, Pago rechazado !`;
         collectedData.RefRecibida = referencia;
@@ -1559,9 +1576,9 @@ export const verify = async (req, res) => {
         }
 
         res.status(200).json(collectedData);
-        
+
         ///---------///---------///---------///---------///---------///---------///---------
-      }else if(collectedData.ref.includes( 'N/A')){
+      } else if (collectedData.ref.includes('N/A')) {
 
         collectedData.status = 'Pago no encontrado';
         collectedData.montorecibido = monto;
@@ -1613,7 +1630,7 @@ export const verify = async (req, res) => {
         res.status(200).json(collectedData);
 
 
-      }else{
+      } else {
         collectedData.status = 'revisar manualmente o descartar';
         collectedData.montorecibido = monto;
         collectedData.RefRecibida = referencia;
