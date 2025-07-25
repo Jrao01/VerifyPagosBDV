@@ -442,7 +442,8 @@ const Login = async (username, password, testing) => {
       // <button class="ng-tns-c17-16 mat-button" mat-button=""><span class="mat-button-wrapper">Aceptar</span><div class="mat-button-ripple mat-ripple" matripple="" bis_skin_checked="1"></div><div class="mat-button-focus-overlay" bis_skin_checked="1"></div></button>
 
       //<simple-snack-bar class="mat-simple-snackbar ng-tns-c17-18 ng-trigger ng-trigger-contentFade ng-star-inserted" style=""><span class="ng-tns-c17-18">Usuario o contraseña incorrecta</span><!----><div class="mat-simple-snackbar-action ng-tns-c17-18 ng-star-inserted" style="" bis_skin_checked="1"><button class="ng-tns-c17-18 mat-button" mat-button=""><span class="mat-button-wrapper">Aceptar</span><div class="mat-button-ripple mat-ripple" matripple="" bis_skin_checked="1"></div><div class="mat-button-focus-overlay" bis_skin_checked="1"></div></button></div></simple-snack-bar>
-
+      // document.querySelector("#cdk-overlay-1 > snack-bar-container > simple-snack-bar > span").innerText
+      await page.waitForSelector('button.mat-button span.mat-button-wrapper', { timeout: 0 });
       let checkingCreds = await page.evaluate(() => {
         let rechazo = document.querySelector('button.mat-button span.mat-button-wrapper') ? document.querySelector('button.mat-button span.mat-button-wrapper').innerText : "accediendo";
         if (rechazo == ' Salir ' || rechazo.includes('Salir')) {
@@ -454,8 +455,12 @@ const Login = async (username, password, testing) => {
           console.log('------------------------------')
           console.log('------------------------------')
           return { status: false, message: rechazo, argg: 'Credenciales correctas, accediendo a la cuenta' };
-        } else if (rechazo/* == ' Aceptar '*/) {
-          let argg = document.querySelector('#cdk-overlay-3 > snack-bar-container > simple-snack-bar > span') ? document.querySelector(/*'simple-snack-bar */'#cdk-overlay-3 > snack-bar-container > simple-snack-bar > span').innerText : "Error al iniciar sesión";
+        } else if (rechazo == 'Aceptar' || rechazo.includes('Aceptar')) {
+          
+          let argg = document.querySelector('#cdk-overlay-3 > snack-bar-container > simple-snack-bar > span') ? document.querySelector(/*'simple-snack-bar */'#cdk-overlay-3 > snack-bar-container > simple-snack-bar > span').innerText : "ya hay una sesion activa o credenciales incorrectas";
+          return { status: true, message: rechazo, argg: argg };
+        }else {
+        let argg = 'error desconocido'
           return { status: true, message: rechazo, argg: argg };
         }
       })
@@ -495,7 +500,7 @@ const Login = async (username, password, testing) => {
         await page.click('td mat-icon');
 
         try {
-          await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 1000 });
+          await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 5000 });
           if (testing === true) {
             checkingCreds.mode = 'testing';
             console.log('inicio de sesion de testeo exitoso, cerrando navegador');
@@ -523,7 +528,7 @@ const Login = async (username, password, testing) => {
         } catch (error) {
           console.error('Error al cargar el input de busqueda :', error);
           console.log('Intentando de nuevo...');
-          await refreshSession()
+          await refreshSession();
         }
 
       } catch (error) {
@@ -1367,6 +1372,10 @@ export const verify = async (req, res) => {
     try {
 
       try {
+        document.querySelector("#cdk-accordion-child-1 > div > app-saldoscuenta > section > div > div > table > tbody > tr > td:nth-child(3) > mat-icon");
+        await page.waitForSelector('#cdk-accordion-child-1 > div > app-saldoscuenta > section > div > div > table > tbody > tr > td:nth-child(3) > mat-icon');
+        await page.click('#cdk-accordion-child-1 > div > app-saldoscuenta > section > div > div > table > tbody > tr > td:nth-child(3) > mat-icon');
+
         await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 0 });
         await page.type('input[placeholder="Buscar"]', referencia);
       } catch (error) {
@@ -1424,6 +1433,8 @@ export const verify = async (req, res) => {
 
       await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 0 });
       await page.$eval('input[placeholder="Buscar"]', el => el.value = '');
+      await page.waitForSelector('#mat-dialog-1 > app-modal-movimientos-cuentas > div.mat-dialog-actions > div > div > button > span', { timeout: 0 });
+      await page.click('#mat-dialog-1 > app-modal-movimientos-cuentas > div.mat-dialog-actions > div > div > button > span');
       
       if (collectedData.monto == monto && collectedData.ref.includes(referencia)) {
         collectedData.status = 'Validado';
