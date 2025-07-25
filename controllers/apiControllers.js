@@ -15,6 +15,113 @@ const ENCRYPTION_KEY = "una_clave_secreta_muy_larga_y_compleja_de_al_menos_32_by
 const IV_LENGTH = 16;
 const type = true
 let checkInterval
+//--//--//--//--//
+let sessionWatcher
+
+const SESSION_BUTTON_SELECTOR = 'snack-bar-container > simple-snack-bar > div > button > span';
+
+class SessionWatcher {
+  constructor(page) {
+    this.page = page;
+    this.isActive = false;
+  }
+
+  async start() {
+    if (this.isActive) return;
+    this.isActive = true;
+    this._watch();
+  }
+
+  async stop() {
+    this.isActive = false;
+  }
+
+  async _watch() {
+    while (this.isActive && !this.page.isClosed()) {
+      try {
+
+
+
+        console.log('[Watcher] Esperando botón de sesión...');
+
+        // Esperar con timeout indefinido
+        await this.page.waitForSelector(SESSION_BUTTON_SELECTOR, {
+          visible: true,
+          timeout: 0
+        });
+        this.cantClicks = 0;
+        this.counter = 0
+
+        setInterval(() => {
+          this.counter += 0.5
+          console.log('[Watcher] Contador:', this.counter);
+        }, 500);
+
+        console.log('[Watcher] Botón detectado. Haciendo click...');
+        await this.page.click(SESSION_BUTTON_SELECTOR);
+        this.cantClicks++;
+
+        console.log('[Watcher] Sesión renovada.');
+
+        mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
+          `• Accion: refrescando sesion\n` +
+          `• Respuesta: Sesion refrescada ${this.cantClicks} veces \n` +
+          `• Status del servicio: ${serviceStatus.message}`;
+
+        try {
+          sendWhatsAppMessage(telepono, mailOptions.text)
+            .then(sent => {
+              if (sent) {
+                console.log(`WhatsApp enviado a ${telepono}`);
+              } else {
+                console.warn(`Error enviando WhatsApp a ${telepono}`);
+              }
+            })
+            .catch(error => console.error('Error en WhatsApp:', error));
+        } catch (whatsappError) {
+          console.error('Error procesando teléfono para WhatsApp:', whatsappError);
+        }
+        // Pequeña pausa para evitar clics duplicados
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+      } catch (error) {
+
+        console.error('[Watcher] Error:', error.message);
+        // Pausa más larga en caso de error       
+
+        serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente refrescando sesion, espere' };
+        mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
+          `• Accion: refrescando sesion\n` +
+          `• Respuesta: fallo en refresco de sesion en el intento ${this.cantClicks}, y ${this.counter}S reiniciando \n` +
+          `• Status del servicio: ${serviceStatus.message}`;
+
+        try {
+          sendWhatsAppMessage(telepono, mailOptions.text)
+            .then(sent => {
+              if (sent) {
+                console.log(`WhatsApp enviado a ${telepono}`);
+              } else {
+                console.warn(`Error enviando WhatsApp a ${telepono}`);
+              }
+            })
+            .catch(error => console.error('Error en WhatsApp:', error));
+        } catch (whatsappError) {
+          console.error('Error procesando teléfono para WhatsApp:', whatsappError);
+        }
+        this.delay = 180 - this.counter
+        await delay(500)
+        this.isActive = false
+        deployBrowser('loqsea', 'loqsea', false);
+        return
+
+      }
+    }
+
+    console.log('[Watcher] Detenido');
+  }
+}
+
+//--//--//--//--//
 
 function encrypt(text) {
   const iv = crypto.randomBytes(IV_LENGTH);
@@ -93,7 +200,7 @@ function CheckPageClosed() {
         console.log('trueando type')
         console.log('se detecto que el browser se apago')
         resolve();
-      } else if (serviceStatus.message == 'Servicio no disponible temporalmente refrescando sesion, espere 20 segundos') {
+      } else if (serviceStatus.message == 'Servicio no disponible temporalmente refrescando sesion, espere') {
         console.log('el browser sigue activo ')
       }
     }, 10000); // Verificar cada segundo
@@ -141,7 +248,7 @@ function delay(time) {
 const reload = async () => {
 
   console.log('starting to Refresh session...');
-  serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente refrescando sesion, espere 20 segundos' };
+  serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente refrescando sesion, espere' };
 
   if (refreshAttempts <= 3) {
 
@@ -152,6 +259,8 @@ const reload = async () => {
     } catch (error) {
       console.error('Error al recargar la página en primer try de reload:', error);
       console.log('Error al recargar la página, intentando de nuevo...');
+      
+      SessionWatcher.stop()
       await deployBrowser(credenciales.username, credenciales.password, false);
       return
     }
@@ -179,8 +288,8 @@ const reload = async () => {
         console.log('-------------------')
 
         mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
-          `• Accion: Registrar Credenciales\n` +
-          `• Respuesta: Credenciales registradas y encriptadas correctamente\n` +
+          `• Accion: Refrescando sesion\n` +
+          `• Respuesta: refrescado con exito\n` +
           `• Status del servicio: ${serviceStatus.message}`;
 
         try {
@@ -239,6 +348,8 @@ const reload = async () => {
         });
 
         if (sClosed == true) {
+          
+          SessionWatcher.stop()
           await deployBrowser('loqsea', 'loqsea', false);
         } else {
           await reload()
@@ -331,6 +442,12 @@ const browserInit = async () => {
   });
 
   page = await browser.newPage();
+
+  await page.setViewport({
+    width: 1280,
+    height: 800,
+    deviceScaleFactor: 1,  // Escalado (1 = normal)
+  });
 
   // Load cookies
   const cookiesPath = 'cookies.json'; // Cambia la ruta para Render
@@ -525,6 +642,10 @@ const Login = async (username, password, testing) => {
             console.log('---------------------------');
             serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
           } else {
+
+            sessionWatcher = new SessionWatcher(page);
+            sessionWatcher.start();
+
             serviceStatus = { status: 200, message: 'Servicio  disponible' };
           }
           return checkingCreds;
@@ -571,7 +692,7 @@ const Login = async (username, password, testing) => {
 const deployBrowser = async (username, password, testing) => {
   let timer = 0;
 
-  serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente refrescando sesion, espere 20 segundos' };
+  serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente refrescando sesion, espere' };
   let decryptedUsername
   let decryptedPassword
 
@@ -598,12 +719,12 @@ const deployBrowser = async (username, password, testing) => {
     await browserInit();
 
 
-    if (intervalID) {
+    /*if (intervalID) {
       clearInterval(intervalID)
       intervalID = setInterval(refreshSession, 140000);
     } else {
       intervalID = setInterval(refreshSession, 140000);
-    }
+    }*/
 
     if (testing === true) {
       console.log('-----------------------')
@@ -666,7 +787,9 @@ export const registerCredenciales = async (req, res) => {
       username: encryptedUsername,
       password: encryptedPassword
     });
-
+    if(sessionWatcher){
+      sessionWatcher.stop()
+    }
     const falla = await deployBrowser(username, password, true);
 
     if (falla && falla.status === false) {
@@ -817,6 +940,9 @@ export const editCreds = async (req, res) => {
         console.log('---------------------------');
         console.log('---------------------------');
         console.log('---------------------------');
+      }
+      if(sessionWatcher){
+        sessionWatcher.stop()
       }
       const falla = await deployBrowser(username, password, true);
 
@@ -1065,7 +1191,10 @@ export const getCreds = async (req, res) => {
 export const deploy = async (req, res) => {
   try {
     if (serviceStatus && serviceStatus.status !== 200) {
-
+      
+      if(sessionWatcher){
+        sessionWatcher.stop()
+      }
       const browserStatus = await deployBrowser(credenciales.username, credenciales.password, false);
 
       if (browserStatus && browserStatus.status === false) {
@@ -1138,7 +1267,7 @@ export const deploy = async (req, res) => {
         }
 
         res.status(203).json({ status: 503, points: browserStatus.argg || 'error', argg: browserStatus.message, message: 'error, espere 3 min y verifique que los datos sean correctos' });
-      } 
+      }
     } else {
       console.log('El servicio ya esta activo, no se puede desplegar de nuevo');
       res.status(200).json({ status: 200, message: 'El servicio ya esta activo, no se puede desplegar de nuevo' });
@@ -1317,7 +1446,7 @@ export const shutDown = async (req, res) => {
 
 export const verify = async (req, res) => {
   // Si el servicio está refrescando, esperar a que esté disponible
-  if (serviceStatus.message === 'Servicio no disponible temporalmente refrescando sesion, espere 20 segundos') {
+  if (serviceStatus.message === 'Servicio no disponible temporalmente refrescando sesion, espere') {
     console.log('Servicio refrescando, esperando disponibilidad...');
 
     try {
