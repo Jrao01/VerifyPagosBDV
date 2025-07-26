@@ -69,19 +69,36 @@ class SessionWatcher {
         // Esperar con timeout indefinido
         await this.page.waitForSelector(SESSION_BUTTON_SELECTOR, {
           visible: true,
-          timeout: 300000
+          timeout: 240000
         });
 
         if (this.cantClicks + 1 >= 4) {
-
           clearInterval(this.intervalId);
-          this.cantClicks = 0
-          //this.delay = 180 - this.counter
+          this.cantClicks = 0;
           console.log('[Watcher] Cantidad de clicks alcanzada, reiniciando sesion por completo');
-          await delay(5000)
-          this.isActive = false
-          deployBrowser('loqsea', 'loqsea', false, 'keep');
-          return
+          mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
+            `• Accion: Refrescando sesion desde 0\n` +
+            `• Respuesta: empezando a refrescar\n` +
+            `• Status del servicio: ${serviceStatus.message}`;
+
+          try {
+            sendWhatsAppMessage(telepono, mailOptions.text)
+              .then(sent => {
+                if (sent) {
+                  console.log(`WhatsApp enviado a ${telepono}`);
+                } else {
+                  console.warn(`Error enviando WhatsApp a ${telepono}`);
+                }
+              })
+              .catch(error => console.error('Error en WhatsApp:', error));
+          } catch (whatsappError) {
+            console.error('Error procesando teléfono para WhatsApp:', whatsappError);
+          }
+          await delay(5000);
+          this.isActive = false;
+          // Espera a que deployBrowser termine antes de continuar
+          await deployBrowser('loqsea', 'loqsea', false, 'keep');
+          return;
         }
 
 
@@ -111,12 +128,12 @@ class SessionWatcher {
         }
         this.counter = 0;
         // Pequeña pausa para evitar clics duplicados
-        try{ 
+        try {
           await this.page.waitForSelector(SESSION_BUTTON_SELECTOR, {
             hidden: true,
             timeout: 4000
           });
-        }catch(error){
+        } catch (error) {
           console.error('Error al esperar el botón de sesión:', error.message);
           // Si no se encuentra el botón, reiniciar el contador
           console.log('continuando')
@@ -314,7 +331,7 @@ const reload = async () => {
       console.error('Error al recargar la página en primer try de reload:', error);
       console.log('Error al recargar la página, intentando de nuevo...');
 
-      sessionWatcher.stop();
+      await sessionWatcher.stop();
       await deployBrowser(credenciales.username, credenciales.password, false, 'keep');
       return
     }
@@ -407,7 +424,7 @@ const reload = async () => {
 
         if (sClosed == true) {
 
-          sessionWatcher.stop()
+          await sessionWatcher.stop()
           await deployBrowser('loqsea', 'loqsea', false, 'keep');
         } else {
           await reload()
@@ -713,21 +730,41 @@ const Login = async (username, password, testing) => {
             console.log('---------------------------');
             serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
           } else {
+        
+            serviceStatus = { status: 200, message: 'Servicio  disponible' };
 
             if (sessionWatcher) {
-              sessionWatcher.stop()
+              await sessionWatcher.stop()
               sessionWatcher = new SessionWatcher(page);
-              sessionWatcher.start();
+              await sessionWatcher.start();
               console.log('Si habia sessionWatcher')
             } else {
               sessionWatcher = new SessionWatcher(page);
-              sessionWatcher.start();
+              await sessionWatcher.start();
               console.log('xxxxxxxxxxxxxxx')
               console.log('No habia sessionWatcher')
               console.log('xxxxxxxxxxxxxxx')
             }
 
-            serviceStatus = { status: 200, message: 'Servicio  disponible' };
+            mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
+              `• Accion: Inicio de sesion\n` +
+              `• Respuesta: Inicio de sesion exitoso\n` +
+              `• Status del servicio: ${serviceStatus.message}`;
+
+            try {
+              sendWhatsAppMessage(telepono, mailOptions.text)
+                .then(sent => {
+                  if (sent) {
+                    console.log(`WhatsApp enviado a ${telepono}`);
+                  } else {
+                    console.warn(`Error enviando WhatsApp a ${telepono}`);
+                  }
+                })
+                .catch(error => console.error('Error en WhatsApp:', error));
+            } catch (whatsappError) {
+              console.error('Error procesando teléfono para WhatsApp:', whatsappError);
+            }
+
           }
           return checkingCreds;
         } catch (error) {
@@ -881,7 +918,7 @@ export const registerCredenciales = async (req, res) => {
       password: encryptedPassword
     });
     if (sessionWatcher) {
-      sessionWatcher.stop()
+      await sessionWatcher.stop()
     }
     const falla = await deployBrowser(username, password, true, 'keep');
 
@@ -1037,7 +1074,7 @@ export const editCreds = async (req, res) => {
         console.log('---------------------------');
       }
       if (sessionWatcher) {
-        sessionWatcher.stop()
+        await sessionWatcher.stop()
         console.log('stopping sessionwatcher', sessionWatcher)
       }
       const falla = await deployBrowser(username, password, true, 'keep');
@@ -1290,7 +1327,7 @@ export const deploy = async (req, res) => {
     if (serviceStatus && serviceStatus.status !== 200) {
 
       if (sessionWatcher) {
-        sessionWatcher.stop()
+        await sessionWatcher.stop()
       }
       const browserStatus = await deployBrowser(credenciales.username, credenciales.password, false, 'keep');
 
@@ -1456,7 +1493,7 @@ export const shutDown = async (req, res) => {
         console.error('Error procesando teléfono para WhatsApp:', whatsappError);
       }
       if (type === true) {
-        sessionWatcher.stop()
+        await sessionWatcher.stop()
         res.status(200).json({ status: 200, message: 'servicio apagado correctamente, espere 3 minutos minimo para volver a inicar o cambiar credenciales' });
       } else {
         console.log('estado de type', type)
