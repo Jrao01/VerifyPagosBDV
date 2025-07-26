@@ -6,10 +6,12 @@ import puppeteer from 'puppeteer-extra'; // puppeteer-extra >>>>>>> puppeteer
 import stealth from 'puppeteer-extra-plugin-stealth';
 import anonymizer from 'puppeteer-extra-plugin-anonymize-ua';
 import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
 
+dotenv.config(/*{ path: path.resolve(__dirname, '.env') }*/);
 import crypto from 'crypto';
 import { time } from 'console';
-const telepono =  process.env.TELEPONO ? process.env.TELEPONO :  '584244588840'
+const telepono = process.env.TELEPONO ? process.env.TELEPONO : '584244588840'
 // Configuración de encriptación
 const ENCRYPTION_KEY = process.env.ENC ? process.env.ENC : "una_clave_secreta_muy_larga_y_compleja_de_al_menos_32_bytes"; // 32+ caracteres
 const IV_LENGTH = 16;
@@ -41,33 +43,44 @@ class SessionWatcher {
 
   async _watch() {
     while (this.isActive && !this.page.isClosed()) {
+
       try {
-
-
 
         console.log('[Watcher] Esperando botón de sesión...');
 
+        if (this.intervalId !== 'nada') {
+
+          clearInterval(this.intervalId);
+          this.intervalId = setInterval(() => {
+            this.counter += 0.5
+            console.log('[Watcher] Contador:', this.counter);
+          }, 500);
+        } else {
+          this.intervalId = setInterval(() => {
+            this.counter += 0.5
+            console.log('[Watcher] Contador:', this.counter);
+          }, 500);
+
+        }
         // Esperar con timeout indefinido
         await this.page.waitForSelector(SESSION_BUTTON_SELECTOR, {
           visible: true,
-          timeout: 0
+          timeout: 200000
         });
 
-        if(this.intervalId !== 'nada') {
-
-          clearInterval(this.intervalId);  
-          this.intervalId =  setInterval(() => {
-            this.counter += 0.5
-            console.log('[Watcher] Contador:', this.counter);
-        }, 500);
-      }else{
-        this.intervalId =  setInterval(() => {
-          this.counter += 0.5
-          console.log('[Watcher] Contador:', this.counter);
-      }, 500);
-
-      }
+        if(this.cantClicks + 1 == 25 ){
         
+        clearInterval(this.intervalId);
+        this.delay = 180 - this.counter
+        console.log('[Watcher] Cantidad de clicks alcanzada, reiniciando sesion por completo');
+        await delay(5000)
+        this.isActive = false
+        deployBrowser('loqsea', 'loqsea', false, 'keep');
+        this.cantClicks = 0
+        return
+      }
+
+
         console.log('[Watcher] Botón detectado. Haciendo click...');
         await this.page.click(SESSION_BUTTON_SELECTOR);
         this.cantClicks++;
@@ -94,13 +107,19 @@ class SessionWatcher {
         }
         this.counter = 0;
         // Pequeña pausa para evitar clics duplicados
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 2500));
 
       } catch (error) {
 
+        if (error.message.includes('Target closed') || error.message.includes('Most likely the page has been closed')) {
+          clearInterval(this.intervalId);
+          this.isActive = false
+          console.log('browser cerrado por el usuario, desactivando sessionWatcher')
+          return
+        }
+
         console.error('[Watcher] Error:', error.message);
         // Pausa más larga en caso de error       
-
         serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente refrescando sesion, espere' };
         mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
           `• Accion: refrescando sesion\n` +
@@ -120,10 +139,11 @@ class SessionWatcher {
         } catch (whatsappError) {
           console.error('Error procesando teléfono para WhatsApp:', whatsappError);
         }
+        clearInterval(this.intervalId);
         this.delay = 180 - this.counter
         await delay(500)
         this.isActive = false
-        deployBrowser('loqsea', 'loqsea', false);
+        deployBrowser('loqsea', 'loqsea', false, 'keep');
         return
 
       }
@@ -272,8 +292,8 @@ const reload = async () => {
       console.error('Error al recargar la página en primer try de reload:', error);
       console.log('Error al recargar la página, intentando de nuevo...');
 
-      SessionWatcher.stop()
-      await deployBrowser(credenciales.username, credenciales.password, false);
+      sessionWatcher.stop();
+      await deployBrowser(credenciales.username, credenciales.password, false ,'keep');
       return
     }
 
@@ -361,8 +381,8 @@ const reload = async () => {
 
         if (sClosed == true) {
 
-          SessionWatcher.stop()
-          await deployBrowser('loqsea', 'loqsea', false);
+          sessionWatcher.stop()
+          await deployBrowser('loqsea', 'loqsea', false, 'keep');
         } else {
           await reload()
         }
@@ -497,9 +517,9 @@ const browserInit = async () => {
     page.on('request', (request) => {
       if (request/*.resourceType() === 'document' || request.resourceType() === 'script'*/) {
         request.continue();
-        console.log('Intercepted request: ', request.resourceType(), '---', request.url());
+        //console.log('Intercepted request: ', request.resourceType(), '---', request.url());
       } else {
-        console.log('Intercepted request:', request.url());
+        //console.log('Intercepted request:', request.url());
         request.continue();
         //request.abort();
       }
@@ -655,8 +675,18 @@ const Login = async (username, password, testing) => {
             serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
           } else {
 
-            sessionWatcher = new SessionWatcher(page);
-            sessionWatcher.start();
+            if(sessionWatcher){
+              sessionWatcher.stop()
+              sessionWatcher = new SessionWatcher(page);
+              sessionWatcher.start();
+              console.log('Si habia sessionWatcher')
+            }else{
+              sessionWatcher = new SessionWatcher(page);
+              sessionWatcher.start();
+              console.log('xxxxxxxxxxxxxxx')
+              console.log('No habia sessionWatcher')
+              console.log('xxxxxxxxxxxxxxx')
+            }
 
             serviceStatus = { status: 200, message: 'Servicio  disponible' };
           }
@@ -701,7 +731,7 @@ const Login = async (username, password, testing) => {
 
 }
 
-const deployBrowser = async (username, password, testing) => {
+const deployBrowser = async (username, password, testing, keep) => {
   let timer = 0;
 
   serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente refrescando sesion, espere' };
@@ -738,7 +768,17 @@ const deployBrowser = async (username, password, testing) => {
       intervalID = setInterval(refreshSession, 140000);
     }*/
 
-    if (testing === true) {
+    if (testing === true && keep == 'keep') {
+      console.log('-----------------------')
+      console.log('-----------------------')
+      console.log('-----------------------')
+      console.log(testing)
+      console.log('-----------------------')
+      console.log('-----------------------')
+      console.log('-----------------------')
+      const tested = await Login(username, password, );
+      return tested;
+    } else if (testing === true ) {
       console.log('-----------------------')
       console.log('-----------------------')
       console.log('-----------------------')
@@ -802,10 +842,11 @@ export const registerCredenciales = async (req, res) => {
     if (sessionWatcher) {
       sessionWatcher.stop()
     }
-    const falla = await deployBrowser(username, password, true);
+    const falla = await deployBrowser(username, password, true, 'keep');
 
     if (falla && falla.status === false) {
 
+      serviceStatus = { status: 200, message: 'Servicio disponible'};
 
       mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
         `• Accion: Registrar Credenciales\n` +
@@ -838,7 +879,7 @@ export const registerCredenciales = async (req, res) => {
       console.log('Credenciales registradas y encriptadas correctamente');
       res.status(200).json({
         status: 200,
-        message: 'Credenciales registradas, verificadas y encriptadas'
+        message: 'Credenciales registradas, verificadas y encriptadas, servicio activo'
       });
     } else {
 
@@ -917,19 +958,18 @@ export const editCreds = async (req, res) => {
     console.log('---------------------------')
     console.log('---------------------------')
     console.log('---------------------------')
-    console.log(req)
+    //console.log(req)
     console.log('---------------------------')
     console.log('---------------------------')
     console.log('---------------------------')
     const { username, password } = req.body;
     const encryptedUsername = encrypt(username);
     const encryptedPassword = encrypt(password);
-    await Credenciales.update({ username: encryptedUsername, password: encryptedPassword }, { where: { id: 1 } });
     // document.querySelector('div.navbar button.mat-button span.mat-button-wrapper span') body > app-root > app-home-layout > app-menu > div > app-sidebar > mat-sidenav-container > mat-sidenav-content > app-navbar > div.navbar > div > button:nth-child(7)
     try {
       if (serviceStatus.status === 200) {
-        await page.waitForSelector('div.col button.mat-button', { timeout: 0 });
-        await page.click('div.col button.mat-button');
+        //await page.waitForSelector('div.col button.mat-button', { timeout: 0 });
+        //await page.click('div.col button.mat-button');
 
         await page.waitForSelector('body > app-root > app-home-layout > app-menu > div > app-sidebar > mat-sidenav-container > mat-sidenav-content > app-navbar > div.navbar > div > button:nth-child(7)', { timeout: 0 });
         await page.click('body > app-root > app-home-layout > app-menu > div > app-sidebar > mat-sidenav-container > mat-sidenav-content > app-navbar > div.navbar > div > button:nth-child(7)');
@@ -955,14 +995,16 @@ export const editCreds = async (req, res) => {
       }
       if (sessionWatcher) {
         sessionWatcher.stop()
+        console.log('stopping sessionwatcher', sessionWatcher)
       }
-      const falla = await deployBrowser(username, password, true);
+      const falla = await deployBrowser(username, password, true, 'keep');
 
       if (falla && falla.status === false) {
         console.log(falla.status)
-        serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
+        serviceStatus = { status: 200, message: 'Servicio disponible' };
 
 
+        await Credenciales.update({ username: encryptedUsername, password: encryptedPassword }, { where: { id: 1 } });
         mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
           `• Accion: Editar Credenciales\n` +
           `• Respuesta: Credenciales editadas y verificadas correctamente\n` +
@@ -990,14 +1032,14 @@ export const editCreds = async (req, res) => {
         }
 
         console.log('Credenciales editadas y verificadas correctamente');
-        res.status(200).json({ status: 200, message: 'Credenciales editadas y verificadas correctamente' })
+        res.status(200).json({ status: 200, message: 'Credenciales editadas y verificadas correctamente, servicio activo' })
       } else {
         console.log(falla.status)
-        console.log('Error al iniciar sesión con las nuevas credenciales');
+        console.log('Error al iniciar sesión con las nuevas credenciales intente en 3 min');
         serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
         mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
           `• Accion: Editar Credenciales\n` +
-          `• Respuesta: Error al iniciar sesión con las nuevas credenciales\n` +
+          `• Respuesta: Error al iniciar sesión con las nuevas credenciales intente en 3 min\n` +
           `• Status del servicio: ${serviceStatus.message}`;
 
         transporter.sendMail(mailOptions, (error, info) => {
@@ -1022,7 +1064,7 @@ export const editCreds = async (req, res) => {
           console.error('Error procesando teléfono para WhatsApp:', whatsappError);
         }
 
-        res.status(203).json({ status: 500, message: 'Error al iniciar sesión con las nuevas credenciales', });
+        res.status(203).json({ status: 500, message: 'Error al iniciar sesión con las nuevas credenciales intente en 3 min, no se actualizaron', });
       }
 
     } catch (error) {
@@ -1207,7 +1249,7 @@ export const deploy = async (req, res) => {
       if (sessionWatcher) {
         sessionWatcher.stop()
       }
-      const browserStatus = await deployBrowser(credenciales.username, credenciales.password, false);
+      const browserStatus = await deployBrowser(credenciales.username, credenciales.password, false,'keep');
 
       if (browserStatus && browserStatus.status === false) {
         console.log('Navegador desplegado correctamente');
@@ -1525,8 +1567,16 @@ export const verify = async (req, res) => {
           hidden: true,
           timeout: 0
         });
-        await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 0 });
-        await page.type('input[placeholder="Buscar"]', referencia);
+        try {
+
+          await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 3000 });
+          await page.type('input[placeholder="Buscar"]', referencia);
+        } catch (error) {
+          await page.click('div.mat-dialog-actions > div > div > button');
+          console.log(error.message)
+          res.status(200).json({ status: 'revisar', message: `Error al buscar la referencia ${referencia}, intenta de nuevo por favor` });
+          return
+        }
       } catch (error) {
         console.error(error);
         console.log('Error en la referencia: ');
