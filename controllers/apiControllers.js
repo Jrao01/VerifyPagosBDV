@@ -72,15 +72,15 @@ class SessionWatcher {
           timeout: 300000
         });
 
-        if (this.cantClicks + 1 == 25) {
+        if (this.cantClicks + 1 >= 4) {
 
           clearInterval(this.intervalId);
-          this.delay = 180 - this.counter
+          this.cantClicks = 0
+          //this.delay = 180 - this.counter
           console.log('[Watcher] Cantidad de clicks alcanzada, reiniciando sesion por completo');
           await delay(5000)
           this.isActive = false
           deployBrowser('loqsea', 'loqsea', false, 'keep');
-          this.cantClicks = 0
           return
         }
 
@@ -1196,7 +1196,7 @@ export const getCreds = async (req, res) => {
         `• Respuesta: Credenciales Obtenidas exitosamente\n` +
         `• Status del servicio: ${serviceStatus.message}`;
 
-      transporter.sendMail(mailOptions, (error, info) => {
+      /*transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
           console.log('Error al enviar:', error);
         } else {
@@ -1216,7 +1216,7 @@ export const getCreds = async (req, res) => {
           .catch(error => console.error('Error en WhatsApp:', error));
       } catch (whatsappError) {
         console.error('Error procesando teléfono para WhatsApp:', whatsappError);
-      }
+      }*/
 
 
       res.status(200).json({ username: decryptedUsername, password: decryptedPassword, status: 200, message: 'Credenciales obtenidas exitosamente' });
@@ -1227,7 +1227,7 @@ export const getCreds = async (req, res) => {
         `• Respuesta: No se encontraron credenciales\n` +
         `• Status del servicio: ${serviceStatus.message}`;
 
-      transporter.sendMail(mailOptions, (error, info) => {
+      /*transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
           console.log('Error al enviar:', error);
         } else {
@@ -1247,7 +1247,7 @@ export const getCreds = async (req, res) => {
           .catch(error => console.error('Error en WhatsApp:', error));
       } catch (whatsappError) {
         console.error('Error procesando teléfono para WhatsApp:', whatsappError);
-      }
+      }*/
 
       res.status(204).json({ status: 404, message: 'No se encontraron credenciales' });
     }
@@ -1258,7 +1258,7 @@ export const getCreds = async (req, res) => {
       `• Respuesta: Error al obtener las credenciales\n` +
       `• Status del servicio: ${serviceStatus.message}`;
 
-    transporter.sendMail(mailOptions, (error, info) => {
+    /*transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
         console.log('Error al enviar:', error);
       } else {
@@ -1278,7 +1278,7 @@ export const getCreds = async (req, res) => {
         .catch(error => console.error('Error en WhatsApp:', error));
     } catch (whatsappError) {
       console.error('Error procesando teléfono para WhatsApp:', whatsappError);
-    }
+    }*/
 
     console.error('Error al obtener las credenciales:', error);
     res.status(200).json({ status: 500, message: 'Error al obtener las credenciales' });
@@ -1568,7 +1568,7 @@ export const verify = async (req, res) => {
       `• Respuesta: El servicio no está activo\n` +
       `• Status del servicio: ${serviceStatus.message}`;
 
-    transporter.sendMail(mailOptions, (error, info) => {
+    /*transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
         console.log('Error al enviar:', error);
       } else {
@@ -1588,7 +1588,7 @@ export const verify = async (req, res) => {
         .catch(error => console.error('Error en WhatsApp:', error));
     } catch (whatsappError) {
       console.error('Error procesando teléfono para WhatsApp:', whatsappError);
-    }
+    }*/
 
     console.log('No hay navegador activo ');
     res.status(200).json({ status: 'su pago no puede ser verificado en este momento, se guardara par verificarse luego', reason: 'No hay servicio activo' });
@@ -1657,7 +1657,7 @@ export const verify = async (req, res) => {
           `• Accion: Verificar Pago\n` +
           `• Respuesta: Error al buscar la referencia ${referencia}\n` +
           `• Status del servicio: ${serviceStatus.message}`;
-        transporter.sendMail(mailOptions, (error, info) => {
+        /*transporter.sendMail(mailOptions, (error, info) => {
           if (error) {
             console.log('Error al enviar:', error);
           } else {
@@ -1677,7 +1677,7 @@ export const verify = async (req, res) => {
             .catch(error => console.error('Error en WhatsApp:', error));
         } catch (whatsappError) {
           console.error('Error procesando teléfono para WhatsApp:', whatsappError);
-        }
+        }*/
 
         res.status(200).json({ status: 500, message: `Error al buscar la referencia ${referencia} intenta de nuevo por favor` });
       }
@@ -1725,7 +1725,7 @@ export const verify = async (req, res) => {
           `• Accion: Verificar Pago\n` +
           `• Respuesta: Pago verificado ${collectedData.RefRecibida}, monto: ${collectedData.montorecibido}\n` +
           `• Status del servicio: ${serviceStatus.message}`;
-        transporter.sendMail(mailOptions, (error, info) => {
+        /*transporter.sendMail(mailOptions, (error, info) => {
           if (error) {
             console.log('Error al enviar:', error);
           } else {
@@ -1744,7 +1744,7 @@ export const verify = async (req, res) => {
             .catch(error => console.error('Error en WhatsApp:', error));
         } catch (whatsappError) {
           console.error('Error procesando teléfono para WhatsApp:', whatsappError);
-        }
+        }*/
 
         try {
 
@@ -1785,14 +1785,14 @@ export const verify = async (req, res) => {
           `• Status del servicio: ${serviceStatus.message}` +
           `• Razon: ${collectedData.status}`;
 
-        transporter.sendMail(mailOptions, (error, info) => {
+        /*transporter.sendMail(mailOptions, (error, info) => {
           if (error) {
             console.log('Error al enviar:', error);
           } else {
             console.log('Correo enviado:', info.response);
           }
-        });
-        try {
+        });*/
+        /*try {
           sendWhatsAppMessage(telepono, mailOptions.text)
             .then(sent => {
               if (sent) {
@@ -1804,7 +1804,7 @@ export const verify = async (req, res) => {
             .catch(error => console.error('Error en WhatsApp:', error));
         } catch (whatsappError) {
           console.error('Error procesando teléfono para WhatsApp:', whatsappError);
-        }
+        }*/
 
         try {
 
@@ -1844,15 +1844,15 @@ export const verify = async (req, res) => {
           `• Accion: Verificar Pago\n` +
           `• Respuesta: Pago Rechazado, descartar o revisar manualmente ${collectedData.RefRecibida}, monto: ${collectedData.montorecibido}\n` +
           `• Status del servicio: ${serviceStatus.message}`;
-        transporter.sendMail(mailOptions, (error, info) => {
+        /*transporter.sendMail(mailOptions, (error, info) => {
           if (error) {
             console.log('Error al enviar:', error);
           } else {
             console.log('Correo enviado:', info.response);
           }
-        });
+        });*/
 
-        try {
+        /*try {
           sendWhatsAppMessage(telepono, mailOptions.text)
             .then(sent => {
               if (sent) {
@@ -1864,7 +1864,7 @@ export const verify = async (req, res) => {
             .catch(error => console.error('Error en WhatsApp:', error));
         } catch (whatsappError) {
           console.error('Error procesando teléfono para WhatsApp:', whatsappError);
-        }
+        }*/
 
         const [pago, created] = await Logs.findOrCreate({
           where: { refRecibida: collectedData.RefRecibida },
@@ -1896,15 +1896,15 @@ export const verify = async (req, res) => {
           `• Accion: Verificar Pago\n` +
           `• Respuesta: Pago Rechazado, descartar o revisar manualmente ${collectedData.RefRecibida}, monto: ${collectedData.montorecibido}\n` +
           `• Status del servicio: ${serviceStatus.message}`;
-        transporter.sendMail(mailOptions, (error, info) => {
+        /*transporter.sendMail(mailOptions, (error, info) => {
           if (error) {
             console.log('Error al enviar:', error);
           } else {
             console.log('Correo enviado:', info.response);
           }
-        });
+        });*/
 
-        try {
+        /*try {
           sendWhatsAppMessage(telepono, mailOptions.text)
             .then(sent => {
               if (sent) {
@@ -1916,7 +1916,7 @@ export const verify = async (req, res) => {
             .catch(error => console.error('Error en WhatsApp:', error));
         } catch (whatsappError) {
           console.error('Error procesando teléfono para WhatsApp:', whatsappError);
-        }
+        }*/
 
         const [pago, created] = await Logs.findOrCreate({
           where: { refRecibida: collectedData.RefRecibida },
@@ -1945,15 +1945,15 @@ export const verify = async (req, res) => {
         `• Respuesta: Pago Rechazado, error al buscar la referencia: ${referencia}\n` +
         `• Status del servicio: ${serviceStatus.message}`;
 
-      transporter.sendMail(mailOptions, (error, info) => {
+      /*transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
           console.log('Error al enviar:', error);
         } else {
           console.log('Correo enviado:', info.response);
         }
-      });
+      });*/
 
-      try {
+      /*try {
         sendWhatsAppMessage(telepono, mailOptions.text)
           .then(sent => {
             if (sent) {
@@ -1965,7 +1965,7 @@ export const verify = async (req, res) => {
           .catch(error => console.error('Error en WhatsApp:', error));
       } catch (whatsappError) {
         console.error('Error procesando teléfono para WhatsApp:', whatsappError);
-      }
+      }*/
 
       res.status(200).json({ status: 'Error en la referencia', referencia: referencia });
     }
@@ -1988,7 +1988,7 @@ export const getLogs = async (req, res) => {
       }
     });
 
-    try {
+    /*try {
       sendWhatsAppMessage(telepono, mailOptions.text)
         .then(sent => {
           if (sent) {
@@ -2000,7 +2000,7 @@ export const getLogs = async (req, res) => {
         .catch(error => console.error('Error en WhatsApp:', error));
     } catch (whatsappError) {
       console.error('Error procesando teléfono para WhatsApp:', whatsappError);
-    }
+    }*/
 
     res.status(200).json(logs);
   } catch (error) {
@@ -2017,7 +2017,7 @@ export const getLogs = async (req, res) => {
       }
     });
 
-    try {
+    /*try {
       sendWhatsAppMessage(telepono, mailOptions.text)
         .then(sent => {
           if (sent) {
@@ -2029,7 +2029,7 @@ export const getLogs = async (req, res) => {
         .catch(error => console.error('Error en WhatsApp:', error));
     } catch (whatsappError) {
       console.error('Error procesando teléfono para WhatsApp:', whatsappError);
-    }
+    }*/
 
     console.error('Error al obtener los logs:', error);
     res.status(200).json({ message: 'Error al obtener los logs' });
@@ -2052,7 +2052,7 @@ export const checkStatus = async (req, res) => {
       }
     });
 
-    try {
+    /*try {
       sendWhatsAppMessage(telepono, mailOptions.text)
         .then(sent => {
           if (sent) {
@@ -2064,7 +2064,7 @@ export const checkStatus = async (req, res) => {
         .catch(error => console.error('Error en WhatsApp:', error));
     } catch (whatsappError) {
       console.error('Error procesando teléfono para WhatsApp:', whatsappError);
-    }
+    }*/
 
     res.status(200).json(serviceStatus);
 
