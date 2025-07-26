@@ -53,14 +53,14 @@ class SessionWatcher {
           clearInterval(this.intervalId);
           this.intervalId = setInterval(() => {
             this.counter += 0.5
-            if(process.env.NODE_ENV === 'development') {
+            if (process.env.NODE_ENV === 'development') {
               console.log('[Watcher] Contador:', this.counter);
             }
           }, 500);
         } else {
           this.intervalId = setInterval(() => {
             this.counter += 0.5
-            if(process.env.NODE_ENV === 'development') {
+            if (process.env.NODE_ENV === 'development') {
               console.log('[Watcher] Contador:', this.counter);
             }
           }, 500);
@@ -69,7 +69,7 @@ class SessionWatcher {
         // Esperar con timeout indefinido
         await this.page.waitForSelector(SESSION_BUTTON_SELECTOR, {
           visible: true,
-          timeout: 200000
+          timeout: 300000
         });
 
         if (this.cantClicks + 1 == 25) {
@@ -111,6 +111,16 @@ class SessionWatcher {
         }
         this.counter = 0;
         // Pequeña pausa para evitar clics duplicados
+        try{ 
+          await this.page.waitForSelector(SESSION_BUTTON_SELECTOR, {
+            hidden: true,
+            timeout: 4000
+          });
+        }catch(error){
+          console.error('Error al esperar el botón de sesión:', error.message);
+          // Si no se encuentra el botón, reiniciar el contador
+          console.log('continuando')
+        }
         await new Promise(resolve => setTimeout(resolve, 2500));
 
       } catch (error) {
@@ -118,7 +128,13 @@ class SessionWatcher {
         if (error.message.includes('Target closed') || error.message.includes('Most likely the page has been closed')) {
           clearInterval(this.intervalId);
           this.isActive = false
+          console.log('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
+          console.log('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
+          console.log('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
           console.log('browser cerrado por el usuario, desactivando sessionWatcher')
+          console.log('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
+          console.log('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
+          console.log('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
           return
         }
 
