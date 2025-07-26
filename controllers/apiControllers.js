@@ -9,9 +9,9 @@ import nodemailer from 'nodemailer';
 
 import crypto from 'crypto';
 import { time } from 'console';
-const telepono = '584244588840'
+const telepono =  process.env.TELEPONO ? process.env.TELEPONO :  '584244588840'
 // Configuración de encriptación
-const ENCRYPTION_KEY = "una_clave_secreta_muy_larga_y_compleja_de_al_menos_32_bytes"; // 32+ caracteres
+const ENCRYPTION_KEY = process.env.ENC ? process.env.ENC : "una_clave_secreta_muy_larga_y_compleja_de_al_menos_32_bytes"; // 32+ caracteres
 const IV_LENGTH = 16;
 const type = true
 let checkInterval
@@ -24,6 +24,9 @@ class SessionWatcher {
   constructor(page) {
     this.page = page;
     this.isActive = false;
+    this.counter = 0
+    this.cantClicks = 0;
+    this.intervalId = 'nada';
   }
 
   async start() {
@@ -49,14 +52,22 @@ class SessionWatcher {
           visible: true,
           timeout: 0
         });
-        this.cantClicks = 0;
-        this.counter = 0
 
-        setInterval(() => {
+        if(this.intervalId !== 'nada') {
+
+          clearInterval(this.intervalId);  
+          this.intervalId =  setInterval(() => {
+            this.counter += 0.5
+            console.log('[Watcher] Contador:', this.counter);
+        }, 500);
+      }else{
+        this.intervalId =  setInterval(() => {
           this.counter += 0.5
           console.log('[Watcher] Contador:', this.counter);
-        }, 500);
+      }, 500);
 
+      }
+        
         console.log('[Watcher] Botón detectado. Haciendo click...');
         await this.page.click(SESSION_BUTTON_SELECTOR);
         this.cantClicks++;
@@ -65,7 +76,7 @@ class SessionWatcher {
 
         mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
           `• Accion: refrescando sesion\n` +
-          `• Respuesta: Sesion refrescada ${this.cantClicks} veces \n` +
+          `• Respuesta: Sesion refrescada ${this.cantClicks} veces, esta vez en ${this.counter}S \n` +
           `• Status del servicio: ${serviceStatus.message}`;
 
         try {
@@ -81,6 +92,7 @@ class SessionWatcher {
         } catch (whatsappError) {
           console.error('Error procesando teléfono para WhatsApp:', whatsappError);
         }
+        this.counter = 0;
         // Pequeña pausa para evitar clics duplicados
         await new Promise(resolve => setTimeout(resolve, 1500));
 
@@ -259,7 +271,7 @@ const reload = async () => {
     } catch (error) {
       console.error('Error al recargar la página en primer try de reload:', error);
       console.log('Error al recargar la página, intentando de nuevo...');
-      
+
       SessionWatcher.stop()
       await deployBrowser(credenciales.username, credenciales.password, false);
       return
@@ -348,7 +360,7 @@ const reload = async () => {
         });
 
         if (sClosed == true) {
-          
+
           SessionWatcher.stop()
           await deployBrowser('loqsea', 'loqsea', false);
         } else {
@@ -427,10 +439,10 @@ const browserInit = async () => {
   }
 
   browser = await puppeteer.launch({
-    headless: false, // Cambiar a true para Render
-    executablePath: process.env.NODE_ENV === 'production'
+    headless: process.env.NODE_ENV === 'production' ? true : false, // Cambiar a true para Render
+    executablePath:/* process.env.NODE_ENV === 'production'
       ? process.env.PUPPETEER_EXECUTABLE_PATH
-      : puppeteer.executablePath(),  // Ruta de Chrome en Render
+      :*/ puppeteer.executablePath(),  // Ruta de Chrome en Render
     //slowMo: 30,
     args: [
       '--no-sandbox',
@@ -787,7 +799,7 @@ export const registerCredenciales = async (req, res) => {
       username: encryptedUsername,
       password: encryptedPassword
     });
-    if(sessionWatcher){
+    if (sessionWatcher) {
       sessionWatcher.stop()
     }
     const falla = await deployBrowser(username, password, true);
@@ -941,7 +953,7 @@ export const editCreds = async (req, res) => {
         console.log('---------------------------');
         console.log('---------------------------');
       }
-      if(sessionWatcher){
+      if (sessionWatcher) {
         sessionWatcher.stop()
       }
       const falla = await deployBrowser(username, password, true);
@@ -1191,8 +1203,8 @@ export const getCreds = async (req, res) => {
 export const deploy = async (req, res) => {
   try {
     if (serviceStatus && serviceStatus.status !== 200) {
-      
-      if(sessionWatcher){
+
+      if (sessionWatcher) {
         sessionWatcher.stop()
       }
       const browserStatus = await deployBrowser(credenciales.username, credenciales.password, false);
@@ -1359,7 +1371,7 @@ export const shutDown = async (req, res) => {
         console.error('Error procesando teléfono para WhatsApp:', whatsappError);
       }
       if (type === true) {
-
+        sessionWatcher.stop()
         res.status(200).json({ status: 200, message: 'servicio apagado correctamente, espere 3 minutos minimo para volver a inicar o cambiar credenciales' });
       } else {
         console.log('estado de type', type)
