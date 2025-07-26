@@ -27,6 +27,6 @@ app.use('/',apiroutes);
 
 await sequelize.sync({force:false}).then(async() => {
     console.log('Base de datos lista');
-    app.listen(PORT, () => console.log('Servidor en http://localhost:' + PORT));
+    app.listen(PORT,'0.0.0.0',() => console.log('Servidor en http://localhost:' + PORT));
 
 });
