@@ -53,32 +53,36 @@ class SessionWatcher {
           clearInterval(this.intervalId);
           this.intervalId = setInterval(() => {
             this.counter += 0.5
-            console.log('[Watcher] Contador:', this.counter);
+            if(process.env.NODE_ENV === 'development') {
+              console.log('[Watcher] Contador:', this.counter);
+            }
           }, 500);
         } else {
           this.intervalId = setInterval(() => {
             this.counter += 0.5
-            console.log('[Watcher] Contador:', this.counter);
+            if(process.env.NODE_ENV === 'development') {
+              console.log('[Watcher] Contador:', this.counter);
+            }
           }, 500);
 
         }
         // Esperar con timeout indefinido
         await this.page.waitForSelector(SESSION_BUTTON_SELECTOR, {
           visible: true,
-          timeout: 200000
+          timeout: 0
         });
 
-        if(this.cantClicks + 1 == 25 ){
-        
-        clearInterval(this.intervalId);
-        this.delay = 180 - this.counter
-        console.log('[Watcher] Cantidad de clicks alcanzada, reiniciando sesion por completo');
-        await delay(5000)
-        this.isActive = false
-        deployBrowser('loqsea', 'loqsea', false, 'keep');
-        this.cantClicks = 0
-        return
-      }
+        if (this.cantClicks + 1 == 25) {
+
+          clearInterval(this.intervalId);
+          this.delay = 180 - this.counter
+          console.log('[Watcher] Cantidad de clicks alcanzada, reiniciando sesion por completo');
+          await delay(5000)
+          this.isActive = false
+          deployBrowser('loqsea', 'loqsea', false, 'keep');
+          this.cantClicks = 0
+          return
+        }
 
 
         console.log('[Watcher] Botón detectado. Haciendo click...');
@@ -124,7 +128,9 @@ class SessionWatcher {
         mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
           `• Accion: refrescando sesion\n` +
           `• Respuesta: fallo en refresco de sesion en el intento ${this.cantClicks}, y ${this.counter}S reiniciando \n` +
-          `• Status del servicio: ${serviceStatus.message}`;
+          `• Status del servicio: ${serviceStatus.message}\n` +
+          `• Error: ${error.message}\n\n\n\n` +
+          `• Error : ${error}`;
 
         try {
           sendWhatsAppMessage(telepono, mailOptions.text)
@@ -293,7 +299,7 @@ const reload = async () => {
       console.log('Error al recargar la página, intentando de nuevo...');
 
       sessionWatcher.stop();
-      await deployBrowser(credenciales.username, credenciales.password, false ,'keep');
+      await deployBrowser(credenciales.username, credenciales.password, false, 'keep');
       return
     }
 
@@ -343,9 +349,11 @@ const reload = async () => {
         refreshAttempts += 1;
 
         try {
+          if (process.env.NODE_ENV === 'development') {
 
-          await page.screenshot({ path: `./imgs/capFalloNro${refreshAttempts}.png`, fullPage: true }, { timeout: 3000 });
-          console.log(`Full page screenshot saved as capFalloNro${refreshAttempts}.png`);
+            await page.screenshot({ path: `./imgs/capFalloNro${refreshAttempts}.png`, fullPage: true }, { timeout: 3000 });
+            console.log(`Full page screenshot saved as capFalloNro${refreshAttempts}.png`);
+          }
         } catch (error) {
           console.log('Error al tomar captura de pantalla:', error);
           console.error(error)
@@ -359,9 +367,11 @@ const reload = async () => {
       refreshAttempts += 1;
       console.error('mat-button no encontrado:', error);
       try {
+        if (process.env.NODE_ENV === 'development') {
 
-        await page.screenshot({ path: `./imgs/capFalloNro${refreshAttempts}.png`, fullPage: true }, { timeout: 3000 });
-        console.log(`Full page screenshot saved as capFalloNro${refreshAttempts}.png`);
+          await page.screenshot({ path: `./imgs/capFalloNro${refreshAttempts}.png`, fullPage: true }, { timeout: 3000 });
+          console.log(`Full page screenshot saved as capFalloNro${refreshAttempts}.png`);
+        }
       } catch (error) {
         console.log('Error al tomar captura de pantalla:', error);
         console.error(error)
@@ -430,6 +440,8 @@ const reload = async () => {
       localStorage.clear();
       sessionStorage.clear();
     });
+    const cookies = await page.cookies();
+    if (cookies.length > 0) await page.deleteCookie(...cookies);
     await page.close();
     await browser.close();
     console.log('---------------------------');
@@ -471,6 +483,7 @@ const browserInit = async () => {
       '--single-process',
       '--no-zygote',
     ],
+    protocolTimeout: 120000,
   });
 
   page = await browser.newPage();
@@ -479,6 +492,20 @@ const browserInit = async () => {
     width: 1280,
     height: 800,
     deviceScaleFactor: 1,  // Escalado (1 = normal)
+  });
+
+  page.setRequestInterception(true);
+  page.on('request', (request) => {
+    if (request.resourceType() === 'document' || request.resourceType() === 'script' || request.resourceType() === 'xhr' || request.resourceType() === 'fetch' /*|| request.resourceType() === 'script'*/) {
+      request.continue();
+      if (request.resourceType() === 'script') {
+        console.log('Intercepted request: ', request.resourceType()/*,'---', request.url()*/);
+      }
+    } else {
+      //console.log('Blocked request:', request.resourceType(), '---', request.url());
+      //request.continue();
+      request.abort();
+    }
   });
 
   // Load cookies
@@ -512,18 +539,8 @@ const browserInit = async () => {
   console.log('status:', status);
   if (status === 200) {
     serviceStatus = { status: 200, message: 'Servicio disponible' };
+    console.log(status, 'Servicio disponible');
 
-    page.setRequestInterception(true);
-    page.on('request', (request) => {
-      if (request/*.resourceType() === 'document' || request.resourceType() === 'script'*/) {
-        request.continue();
-        //console.log('Intercepted request: ', request.resourceType(), '---', request.url());
-      } else {
-        //console.log('Intercepted request:', request.url());
-        request.continue();
-        //request.abort();
-      }
-    });
     //await CheckPageClosed()
   } else {
     console.log('Error al cargar la página due status:', status);
@@ -533,6 +550,8 @@ const browserInit = async () => {
       localStorage.clear();
       sessionStorage.clear();
     });
+    const cookies = await page.cookies();
+    if (cookies.length > 0) await page.deleteCookie(...cookies);
     await browser.close();
     console.log('---------------------------');
     console.log('---------------------------');
@@ -562,6 +581,8 @@ const refreshSession = async () => {
       localStorage.clear();
       sessionStorage.clear();
     });
+    const cookies = await page.cookies();
+    if (cookies.length > 0) await page.deleteCookie(...cookies);
     await page.close();
     await browser.close();
     console.log('---------------------------');
@@ -631,6 +652,8 @@ const Login = async (username, password, testing) => {
           localStorage.clear();
           sessionStorage.clear();
         });
+        const cookies = await page.cookies();
+        if (cookies.length > 0) await page.deleteCookie(...cookies);
         await page.close()
         await browser.close();
         console.log('---------------------------');
@@ -675,12 +698,12 @@ const Login = async (username, password, testing) => {
             serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
           } else {
 
-            if(sessionWatcher){
+            if (sessionWatcher) {
               sessionWatcher.stop()
               sessionWatcher = new SessionWatcher(page);
               sessionWatcher.start();
               console.log('Si habia sessionWatcher')
-            }else{
+            } else {
               sessionWatcher = new SessionWatcher(page);
               sessionWatcher.start();
               console.log('xxxxxxxxxxxxxxx')
@@ -718,6 +741,8 @@ const Login = async (username, password, testing) => {
       localStorage.clear();
       sessionStorage.clear();
     });
+    const cookies = await page.cookies();
+    if (cookies.length > 0) await page.deleteCookie(...cookies);
     await browser.close();
     console.log('---------------------------');
     console.log('---------------------------');
@@ -776,9 +801,9 @@ const deployBrowser = async (username, password, testing, keep) => {
       console.log('-----------------------')
       console.log('-----------------------')
       console.log('-----------------------')
-      const tested = await Login(username, password, );
+      const tested = await Login(username, password,);
       return tested;
-    } else if (testing === true ) {
+    } else if (testing === true) {
       console.log('-----------------------')
       console.log('-----------------------')
       console.log('-----------------------')
@@ -846,7 +871,7 @@ export const registerCredenciales = async (req, res) => {
 
     if (falla && falla.status === false) {
 
-      serviceStatus = { status: 200, message: 'Servicio disponible'};
+      serviceStatus = { status: 200, message: 'Servicio disponible' };
 
       mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
         `• Accion: Registrar Credenciales\n` +
@@ -982,6 +1007,8 @@ export const editCreds = async (req, res) => {
           localStorage.clear();
           sessionStorage.clear();
         });
+        const cookies = await page.cookies();
+        if (cookies.length > 0) await page.deleteCookie(...cookies);
 
         await page.close();
         await browser.close();
@@ -1249,7 +1276,7 @@ export const deploy = async (req, res) => {
       if (sessionWatcher) {
         sessionWatcher.stop()
       }
-      const browserStatus = await deployBrowser(credenciales.username, credenciales.password, false,'keep');
+      const browserStatus = await deployBrowser(credenciales.username, credenciales.password, false, 'keep');
 
       if (browserStatus && browserStatus.status === false) {
         console.log('Navegador desplegado correctamente');
@@ -1460,6 +1487,8 @@ export const shutDown = async (req, res) => {
       sessionStorage.clear();
     });
 
+    const cookies = await page.cookies();
+    if (cookies.length > 0) await page.deleteCookie(...cookies);
     console.log('Error al apagar el servicio');
     mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
       `• Accion: Apagar servicio\n` +
@@ -1573,17 +1602,37 @@ export const verify = async (req, res) => {
           await page.type('input[placeholder="Buscar"]', referencia);
         } catch (error) {
           await page.click('div.mat-dialog-actions > div > div > button');
-          console.log(error.message)
-          res.status(200).json({ status: 'revisar', message: `Error al buscar la referencia ${referencia}, intenta de nuevo por favor` });
-          return
+
+          try {
+            await page.waitForSelector('#cdk-accordion-child-1 > div > app-saldoscuenta > section > div > div > table > tbody > tr > td:nth-child(3) > mat-icon');
+            await page.click('#cdk-accordion-child-1 > div > app-saldoscuenta > section > div > div > table > tbody > tr > td:nth-child(3) > mat-icon');
+
+            // Esperar a que el spinner esté oculto o eliminado
+            await page.waitForSelector("#spinner", {
+              hidden: true,
+              timeout: 0
+            });
+            await page.waitForSelector('input[placeholder="Buscar"]', { timeout: 3000 });
+            await page.type('input[placeholder="Buscar"]', referencia);
+
+          } catch (error) {
+            await page.click('div.mat-dialog-actions > div > div > button');
+
+            console.log(error.message)
+            res.status(200).json({ status: 'revisar', message: `Error al buscar la referencia ${referencia}, intenta de nuevo por favor` });
+            return
+
+          }
         }
       } catch (error) {
         console.error(error);
         console.log('Error en la referencia: ');
         try {
+          if (process.env.NODE_ENV === 'development') {
 
-          await page.screenshot({ path: `./imgs/capFalloNro${refreshAttempts}.png`, fullPage: true }, { timeout: 3000 });
-          console.log(`Full page screenshot saved as capFalloNro${refreshAttempts}.png`);
+            await page.screenshot({ path: `./imgs/capFalloNro${refreshAttempts}.png`, fullPage: true }, { timeout: 3000 });
+            console.log(`Full page screenshot saved as capFalloNro${refreshAttempts}.png`);
+          }
         } catch (error) {
           console.log('Error al tomar captura de pantalla:', error);
           console.error(error)
