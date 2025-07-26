@@ -69,7 +69,7 @@ class SessionWatcher {
         // Esperar con timeout indefinido
         await this.page.waitForSelector(SESSION_BUTTON_SELECTOR, {
           visible: true,
-          timeout: 0
+          timeout: 200000
         });
 
         if (this.cantClicks + 1 == 25) {
@@ -483,7 +483,7 @@ const browserInit = async () => {
       '--single-process',
       '--no-zygote',
     ],
-    protocolTimeout: 120000,
+    protocolTimeout: 300000,
   });
 
   page = await browser.newPage();
