@@ -17,10 +17,13 @@ const ENCRYPTION_KEY = process.env.ENC ? process.env.ENC : "una_clave_secreta_mu
 const IV_LENGTH = 16;
 const type = true
 let checkInterval
+let checkInterval2
 //--//--//--//--//
 let sessionWatcher
 
 const SESSION_BUTTON_SELECTOR = 'snack-bar-container > simple-snack-bar > div > button > span';
+
+let shuted
 
 class SessionWatcher {
   constructor(page) {
@@ -72,7 +75,7 @@ class SessionWatcher {
           timeout: 240000
         });
 
-        if (this.cantClicks + 1 >= 4) {
+        if (this.cantClicks + 1 >= 25) {
           clearInterval(this.intervalId);
           this.cantClicks = 0;
           console.log('[Watcher] Cantidad de clicks alcanzada, reiniciando sesion por completo');
@@ -142,7 +145,7 @@ class SessionWatcher {
 
       } catch (error) {
 
-        if (error.message.includes('Target closed') || error.message.includes('Most likely the page has been closed')) {
+        if (shuted == true && error.message.includes('Target closed') || shuted == true && error.message.includes('Most likely the page has been closed')) {
           clearInterval(this.intervalId);
           this.isActive = false
           console.log('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
@@ -153,6 +156,37 @@ class SessionWatcher {
           console.log('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
           console.log('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
           return
+        }else if(this.counter < 140){
+          
+        console.error('[Watcher] Error:', error.message);
+        // Pausa más larga en caso de error       
+        serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente refrescando sesion, espere' };
+        mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
+          `• Accion: deteccion de errores \n` +
+          `• Respuesta: error desconocido, reiniciando servicio en ${180 - this.counter} \n` +
+          `• Status del servicio: ${serviceStatus.message}\n` +
+          `• Error: ${error.message}\n\n\n\n`;
+//          `• Error : ${error}`;
+
+        try {
+          sendWhatsAppMessage(telepono, mailOptions.text)
+            .then(sent => {
+              if (sent) {
+                console.log(`WhatsApp enviado a ${telepono}`);
+              } else {
+                console.warn(`Error enviando WhatsApp a ${telepono}`);
+              }
+            })
+            .catch(error => console.error('Error en WhatsApp:', error));
+        } catch (whatsappError) {
+          console.error('Error procesando teléfono para WhatsApp:', whatsappError);
+        }
+        clearInterval(this.intervalId);
+        this.delay = 180 - this.counter
+        await delay(this.delay)
+        this.isActive = false
+        deployBrowser('loqsea', 'loqsea', false, 'keep');
+        return
         }
 
         console.error('[Watcher] Error:', error.message);
@@ -248,33 +282,30 @@ function waitForServiceAvailable(timeout = 120000) {
 
 function CheckPageClosed() {
   return new Promise((resolve, reject) => {
-    const startTime = Date.now();
+    if (checkInterval2) clearInterval(checkInterval2);
 
-    if (checkInterval) {
-      clearInterval(checkInterval);
-    }
-
-    // Verificar inmediatamente si ya está disponible
-    if (page.isClosed()) {
-      return resolve();
-    }
-
-    checkInterval = setInterval(async () => {
-      // Verificar si el servicio está disponible
-      if (await page.isClosed() && serviceStatus.message == 'Servicio disponible') {
+    checkInterval2 = setInterval(async () => {
+      if (
+        await page.isClosed() &&
+        !shuted &&
+        serviceStatus.message !== 'Servicio no disponible temporalmente, activar manualmente'
+      ) {
+        mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
+          `• Accion: Cierre inesperado del navegador\n` +
+          `• Respuesta: El navegador se cerró inesperadamente\n` +
+          `• Status del servicio: ${serviceStatus.message}`;
+        try {
+          await sendWhatsAppMessage(telepono, mailOptions.text);
+          console.log('WhatsApp enviado por cierre inesperado');
+        } catch (error) {
+          console.error('Error enviando WhatsApp por cierre inesperado:', error);
+        }
         serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
-        clearInterval(checkInterval);
-        type = false
-        console.log('falseando type')
-        await shutDown()
-        type = true;
-        console.log('trueando type')
-        console.log('se detecto que el browser se apago')
+        clearInterval(checkInterval2);
+        console.log('se detecto que el browser se apago');
         resolve();
-      } else if (serviceStatus.message == 'Servicio no disponible temporalmente refrescando sesion, espere') {
-        console.log('el browser sigue activo ')
       }
-    }, 10000); // Verificar cada segundo
+    }, 10000);
   });
 }
 
@@ -573,8 +604,8 @@ const browserInit = async () => {
   if (status === 200) {
     serviceStatus = { status: 200, message: 'Servicio disponible' };
     console.log(status, 'Servicio disponible');
-
-    //await CheckPageClosed()
+    // Iniciar monitoreo de cierre inesperado
+    //CheckPageClosed();
   } else {
     console.log('Error al cargar la página due status:', status);
     serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
@@ -697,6 +728,35 @@ const Login = async (username, password, testing) => {
         console.log('---------------------------');
         console.log('---------------------------');
         serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
+        
+    mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
+      `• Accion: Iniciando Sesion\n` +
+      `• Respuesta: Error iniciando sesion,  revisar y reiniciar servicio manualmente\n` +
+      `• Status del servicio: ${serviceStatus.message}`;
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log('Error al enviar:', error);
+      } else {
+        console.log('Correo enviado:', info.response);
+      }
+    });
+
+    try {
+      sendWhatsAppMessage(telepono, mailOptions.text)
+        .then(sent => {
+          if (sent) {
+            console.log(`WhatsApp enviado a ${telepono}`);
+          } else {
+            console.warn(`Error enviando WhatsApp a ${telepono}`);
+          }
+        })
+        .catch(error => console.error('Error en WhatsApp:', error));
+    } catch (whatsappError) {
+      console.error('Error procesando teléfono para WhatsApp:', whatsappError);
+    }
+
+
         return checkingCreds;
         ///await delay(20000);
       }
@@ -1323,6 +1383,7 @@ export const getCreds = async (req, res) => {
 }
 
 export const deploy = async (req, res) => {
+  
   try {
     if (serviceStatus && serviceStatus.status !== 200) {
 
@@ -1361,7 +1422,7 @@ export const deploy = async (req, res) => {
         } catch (whatsappError) {
           console.error('Error procesando teléfono para WhatsApp:', whatsappError);
         }
-
+        shuted = false
         res.status(200).json({ status: 200, message: 'Servicio desplegado correctamente', argg: 'credenciales correctas', points: 'N/A' });
       } else {
         console.log('Error al desplegar el navegador');
@@ -1447,7 +1508,7 @@ export const shutDown = async (req, res) => {
   try {
 
     if (serviceStatus && serviceStatus.status === 200) {
-
+      shuted = true
       await page.evaluate(() => {
         localStorage.clear();
         sessionStorage.clear();
