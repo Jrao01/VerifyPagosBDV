@@ -508,7 +508,6 @@ const reload = async () => {
     if (cookies.length > 0) await page.deleteCookie(...cookies);
     await page.close();
     await browser.close();
-    browser = null;
     console.log('---------------------------');
     console.log('---------------------------');
     console.log('---------------------------');
@@ -528,7 +527,6 @@ const browserInit = async () => {
     // Limpiar ambos almacenamientos
 
     await browser.close();
-    browser = null;
     console.log('---------------------------');
     console.log('---------------------------');
     console.log('---------------------------');
@@ -628,7 +626,6 @@ const browserInit = async () => {
     const cookies = await page.cookies();
     if (cookies.length > 0) await page.deleteCookie(...cookies);
     await browser.close();
-    browser = null;
     console.log('---------------------------');
     console.log('---------------------------');
     console.log('---------------------------');
@@ -661,7 +658,6 @@ const refreshSession = async () => {
     if (cookies.length > 0) await page.deleteCookie(...cookies);
     await page.close();
     await browser.close();
-    browser = null;
     console.log('---------------------------');
     console.log('---------------------------');
     console.log('---------------------------');
@@ -733,7 +729,6 @@ const Login = async (username, password, testing) => {
         if (cookies.length > 0) await page.deleteCookie(...cookies);
         await page.close()
         await browser.close();
-        browser = null;
         console.log('---------------------------');
         console.log('---------------------------');
         console.log('---------------------------');
@@ -795,7 +790,6 @@ const Login = async (username, password, testing) => {
             if (cookies.length > 0) await page.deleteCookie(...cookies);
             await page.close();
             await browser.close();
-            browser = null;
             console.log('---------------------------');
             console.log('---------------------------');
             console.log('---------------------------');
@@ -872,7 +866,6 @@ const Login = async (username, password, testing) => {
     const cookies = await page.cookies();
     if (cookies.length > 0) await page.deleteCookie(...cookies);
     await browser.close();
-    browser = null;
     console.log('---------------------------');
     console.log('---------------------------');
     console.log('---------------------------');
@@ -980,7 +973,6 @@ export const registerCredenciales = async (req, res) => {
       const cookies = await page.cookies();
       if (cookies.length > 0) await page.deleteCookie(...cookies);
       browser.close();
-      browser = null;
       console.log('---------------------------');
       console.log('---------------------------');
       console.log('---------------------------');
@@ -1142,7 +1134,6 @@ export const editCreds = async (req, res) => {
 
         await page.close();
         await browser.close();
-        browser = null;
         console.log('---------------------------');
         console.log('---------------------------');
         console.log('---------------------------');
@@ -1536,7 +1527,6 @@ export const shutDown = async (req, res) => {
 
       await page.close();
       await browser.close();
-      browser = null;
       console.log('---------------------------');
       console.log('---------------------------');
       console.log('---------------------------');
@@ -1665,6 +1655,8 @@ export const verify = async (req, res) => {
   if (serviceStatus.message === 'Servicio no disponible temporalmente refrescando sesion, espere') {
     console.log('Servicio refrescando, esperando disponibilidad...');
 
+    res.status(200).json({status:'revisar', message: 'su pago se revisara mas tarde'});
+
     try {
       // Esperar máximo 2 minutos (120000 ms)
       await waitForServiceAvailable(120000);
@@ -1708,7 +1700,7 @@ export const verify = async (req, res) => {
     }*/
 
     console.log('No hay navegador activo ');
-    res.status(200).json({ status: 'su pago no puede ser verificado en este momento, se guardara par verificarse luego', reason: 'No hay servicio activo' });
+    res.status(200).json({ status: 'revisar', message: 'el servicio de verificacion automatica esta fuera de servicio, su pago se revisara mas tarde' });
 
   }
   if (serviceStatus.status == 200) {
