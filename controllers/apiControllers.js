@@ -334,7 +334,7 @@ const transporter = nodemailer.createTransport({
 });
 
 const mailOptions = {
-  from: '"Julian Amer Y Randis Graterl" <julianrafael1604@gmail.com>',
+  from: '"Julian Amer Y Randis Graterol" <julianrafael1604@gmail.com>',
   to: 'sossarifa@gmail.com',
   subject: 'Reporte de satus y actividades del servicio de verificacion de Pagos al BDV',
   text: ''
@@ -1652,12 +1652,12 @@ export const shutDown = async (req, res) => {
 
 export const verify = async (req, res) => {
   // Si el servicio está refrescando, esperar a que esté disponible
-  if (serviceStatus.message === 'Servicio no disponible temporalmente refrescando sesion, espere') {
-    console.log('Servicio refrescando, esperando disponibilidad...');
+  if (serviceStatus.message === 'Servicio no disponible temporalmente refrescando sesion, espere' || serviceStatus.message === 'Servicio activo, verificando pagos masivos...') {
+    console.log('Servicio refrescando, esperando disponibilidad...'); 
 
     res.status(200).json({status:'revisar', message: 'su pago se revisara mas tarde'});
-
-    try {
+    return
+/*    try {
       // Esperar máximo 2 minutos (120000 ms)
       await waitForServiceAvailable(120000);
       console.log('Servicio disponible después de espera');
@@ -1667,7 +1667,7 @@ export const verify = async (req, res) => {
         status: 503,
         message: 'El servicio no se recuperó a tiempo'
       });
-    }
+    }*/
   }
 
   // Si el servicio no está disponible después de esperar
@@ -2275,5 +2275,46 @@ export const editLog = async (req, res) => {
     res.status(200).json({ status: 500, message: 'Error al actualizar el log' });
   }
 };
+/*
+export const masiveVerify = async (req, res) => {
+  try {
+    const { arr } = req.body;
+    if (!Array.isArray(arr) || arr.length === 0) {
+      return res.status(400).json({ status: 'error', message: 'El array de referencias y montos no es válido' });
+    }
+
+
+    if (serviceStatus.status === 200) {
+
+      console.log('Servicio activo, procediendo a verificar pagos masivos...');
+      serviceStatus.message = 'Servicio activo, verificando pagos masivos...';
+      //---------------------//---------------------//---------------------//---------------------//---------------------
+      arr.forEach(element => {
+        
+        try{
+  
+        }catch(error){
+          console.error('Error al procesar el array de referencias y montos:', error);
+        }
+      });
+
+
+      //---------------------//---------------------//---------------------//---------------------//---------------------
+      serviceStatus = { status: 200, message: 'Servicio disponible' };
+      res.status(200).json({ status:200, message: 'Verificación masiva completada',  });
+    } else {
+      console.log('El servicio no está activo');
+      res.status(200).json({ status: 'error', message: 'El servicio de verificacion no está activo' });
+    }
+  } catch (error) {
+    console.error('Error en la verificación masiva:', error);
+    res.status(200).json({ status: 'error', message: 'Error en la verificación masiva' });
+  }
+};
+*/
+async function sendMessage(accion,respuesta){
+
+}
+
 
 //module.exports = {editCreds, getCreds, deploy,shutDown,registerCredenciales,editLog, checkStatus,getLogs, verify}
