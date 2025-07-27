@@ -144,4 +144,4 @@ export const sendWhatsAppMessage = async (number, message) => {
 };
 
 // Inicializar inmediatamente al cargar el módulo
-initWhatsAppClient();
+//initWhatsAppClient();

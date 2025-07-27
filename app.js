@@ -2,9 +2,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-dotenv.config(/*{ path: path.resolve(__dirname, '.env') }*/);
+dotenv.config();
 import express from 'express';
 const app = express();
 import cors from 'cors';
@@ -15,7 +13,7 @@ const PORT = 4000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Middleware para manejar el prefijo /backend
+// Middleware para manejar el prefijo /apiPayments
 app.use('/apiPayments', (req, res, next) => {
     console.log(`apiPayments request: ${req.method} ${req.originalUrl}`);
     next();
