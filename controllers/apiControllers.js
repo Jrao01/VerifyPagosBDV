@@ -587,27 +587,27 @@ const browserInit = async () => {
       ? process.env.PUPPETEER_EXECUTABLE_PATH
       :*/ puppeteer.executablePath(),  // Ruta de Chrome en Render
     //slowMo: 30,
-  args: [
-  '--no-sandbox',
-  '--disable-setuid-sandbox',
-  '--disable-dev-shm-usage',  // ✅ Descomenta esto (evita fallos por memoria)
-  '--single-process',          // ✅ Reduce procesos (usa con precaución)
-  '--no-zygote',
-  '--disable-gpu',             // ✅ Libera recursos de GPU
-  '--disable-accelerated-2d-canvas',
-  '--font-render-hinting=none', // ✅ Reduce carga de fuentes
-  '--blink-settings=imagesEnabled=false',
-],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',  // ✅ Descomenta esto (evita fallos por memoria)
+      '--single-process',          // ✅ Reduce procesos (usa con precaución)
+      '--no-zygote',
+      '--disable-gpu',             // ✅ Libera recursos de GPU
+      '--disable-accelerated-2d-canvas',
+      '--font-render-hinting=none', // ✅ Reduce carga de fuentes
+      '--blink-settings=imagesEnabled=false',
+    ],
     protocolTimeout: 300000,
   });
 
   page = await browser.newPage();
 
-  /*await page.setViewport({
-    width: 1,
-    height: 1,
+  await page.setViewport({
+    width: 1280, // Ancho del viewport
+    height: 800,
     deviceScaleFactor: 1,  // Escalado (1 = normal)
-  });*/
+  });
 
   page.setRequestInterception(true);
   page.on('request', (request) => {
@@ -813,9 +813,7 @@ const Login = async (username, password, testing) => {
       }
 
       try {
-        console.log('Esperando a que cargue mat-button ');
-        await page.waitForSelector('td mat-icon', { timeout: 5000 });
-        await delay(300);
+
         //await page.click('td mat-icon');
 
         try {
@@ -841,6 +839,9 @@ const Login = async (username, password, testing) => {
             console.log('---------------------------');
             serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
           } else {
+            console.log('Esperando a que cargue mat-button ');
+            await delay(300);
+            await page.waitForSelector('td mat-icon', { timeout: 10000 });
 
             serviceStatus = { status: 200, message: 'Servicio  disponible' };
 
@@ -862,13 +863,13 @@ const Login = async (username, password, testing) => {
               `• Respuesta: Inicio de sesion exitoso\n` +
               `• Status del servicio: ${serviceStatus.message}`;
 
-                  transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.log('Error al enviar:', error);
-      } else {
-        console.log('Correo enviado:', info.response);
-      }
-    });
+            transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                console.log('Error al enviar:', error);
+              } else {
+                console.log('Correo enviado:', info.response);
+              }
+            });
 
             /*try {
               sendWhatsAppMessage(telepono, mailOptions.text)
@@ -887,7 +888,7 @@ const Login = async (username, password, testing) => {
           }
           return checkingCreds;
         } catch (error) {
-          console.error('Error al cargar el input de busqueda :', error);
+          console.error('Error al cargar :', error);
           console.log('Intentando de nuevo...');
           await refreshSession();
         }
@@ -898,7 +899,7 @@ const Login = async (username, password, testing) => {
         await refreshSession()
       }
     } catch (error) {
-      console.error('Error al iniciar sesión:', error);
+      console.error('Error al iniciar sesión:', error.message);
       console.log('Error al iniciar sesiónnnnn');
       serviceStatus = { status: 503, message: 'Servicio no disponible temporalmente, activar manualmente' };
       return checkingCreds
@@ -1162,18 +1163,20 @@ export const editCreds = async (req, res) => {
     const { username, password } = req.body;
     const encryptedUsername = encrypt(username);
     const encryptedPassword = encrypt(password);
+
+    await Credenciales.update({ username: encryptedUsername, password: encryptedPassword }, { where: { id: 1 } });
     // document.querySelector('div.navbar button.mat-button span.mat-button-wrapper span') body > app-root > app-home-layout > app-menu > div > app-sidebar > mat-sidenav-container > mat-sidenav-content > app-navbar > div.navbar > div > button:nth-child(7)
     try {
       if (serviceStatus.status === 200) {
         //await page.waitForSelector('div.col button.mat-button', { timeout: 0 });
         //await page.click('div.col button.mat-button');
 
-        await page.waitForSelector('body > app-root > app-home-layout > app-menu > div > app-sidebar > mat-sidenav-container > mat-sidenav-content > app-navbar > div.navbar > div > button:nth-child(7)', { timeout: 0 });
-        await page.click('body > app-root > app-home-layout > app-menu > div > app-sidebar > mat-sidenav-container > mat-sidenav-content > app-navbar > div.navbar > div > button:nth-child(7)');
+        /*await page.waitForSelector('body > app-root > app-home-layout > app-menu > div > app-sidebar > mat-sidenav-container > mat-sidenav-content > app-navbar > div.navbar > div > button:nth-child(7)', { timeout: 0 });
+        /*await page.click('body > app-root > app-home-layout > app-menu > div > app-sidebar > mat-sidenav-container > mat-sidenav-content > app-navbar > div.navbar > div > button:nth-child(7)');
 
         await page.waitForSelector('div.button-action button', { timeout: 0 });
         await page.click('div.button-action button');
-
+*/
         // Limpiar ambos almacenamientos
         await page.evaluate(() => {
           localStorage.clear();
@@ -1196,14 +1199,12 @@ export const editCreds = async (req, res) => {
         await sessionWatcher.stop()
         console.log('stopping sessionwatcher', sessionWatcher)
       }
-      const falla = await deployBrowser(username, password, true, 'keep');
+      const falla = await deployBrowser(username, password, true, 'nokeep');
 
       if (falla && falla.status === false) {
         console.log(falla.status)
         serviceStatus = { status: 200, message: 'Servicio disponible' };
 
-
-        await Credenciales.update({ username: encryptedUsername, password: encryptedPassword }, { where: { id: 1 } });
         mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
           `• Accion: Editar Credenciales\n` +
           `• Respuesta: Credenciales editadas y verificadas correctamente\n` +
@@ -1229,9 +1230,9 @@ export const editCreds = async (req, res) => {
         } catch (whatsappError) {
           console.error('Error procesando teléfono para WhatsApp:', whatsappError);
         }*/
-
+        serviceStatus = { status: 500, message: 'Servicio no disponible temporalmente, activar manualmente' };
         console.log('Credenciales editadas y verificadas correctamente');
-        res.status(200).json({ status: 200, message: 'Credenciales editadas y verificadas correctamente, servicio activo' })
+        res.status(200).json({ status: 200, message: 'Credenciales editadas y verificadas correctamente, espere 3min para encender verificacion ' })
       } else {
         console.log(falla.status)
         console.log('Error al iniciar sesión con las nuevas credenciales intente en 3 min');
@@ -1263,7 +1264,7 @@ export const editCreds = async (req, res) => {
           console.error('Error procesando teléfono para WhatsApp:', whatsappError);
         }*/
 
-        res.status(203).json({ status: 500, message: 'Error al iniciar sesión con las nuevas credenciales intente en 3 min, no se actualizaron', });
+        res.status(200).json({ status: 500, message: 'Error al iniciar sesión con las nuevas credenciales intente en 3 min, no se actualizaron', });
       }
 
     } catch (error) {
@@ -1274,7 +1275,9 @@ export const editCreds = async (req, res) => {
       mailOptions.text = `📢 Reporte de servicio de Verificacion!\n\n` +
         `• Accion: Editar Credenciales\n` +
         `• Respuesta: Error al cerrar sesión luego de editar credenciales\n` +
-        `• Status del servicio: ${serviceStatus.message}`;
+        `• Status del servicio: ${serviceStatus.message}` +
+        `• Error: ${error.message}`
+        ;
 
       transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
