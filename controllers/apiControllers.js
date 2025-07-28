@@ -150,8 +150,9 @@ class SessionWatcher {
             hidden: true,
             timeout: 4000
           });
+          console.log('[Watcher] Botón oculto, esperando a que vuelva a aparecer...');
         } catch (error) {
-          console.error('Error al esperar el botón de sesión:', error.message);
+          console.error('[Watcher] El banco esta lento:', error.message);
           // Si no se encuentra el botón, reiniciar el contador
           console.log('continuando')
         }
@@ -546,6 +547,7 @@ const reload = async () => {
     if (cookies.length > 0) await page.deleteCookie(...cookies);
     await page.close();
     await browser.close();
+    browser = null;
     console.log('---------------------------');
     console.log('---------------------------');
     console.log('---------------------------');
@@ -563,7 +565,13 @@ const browserInit = async () => {
 
     if (browser !== null) {
       // Limpiar ambos almacenamientos
-
+      await page.evaluate(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+      });
+      const cookies = await page.cookies();
+      if (cookies.length > 0) await page.deleteCookie(...cookies);
+      await page.close()
       await browser.close();
       console.log('---------------------------');
       console.log('---------------------------');
@@ -667,6 +675,7 @@ const browserInit = async () => {
     });
     const cookies = await page.cookies();
     if (cookies.length > 0) await page.deleteCookie(...cookies);
+    await page.close()
     await browser.close();
     console.log('---------------------------');
     console.log('---------------------------');
@@ -681,7 +690,7 @@ const browserInit = async () => {
 const refreshSession = async () => {
 
   try {
-    if (browser && browser.isConnected() && page && !page.isClosed() && serviceStatus.status === 200) {
+    if (browsern && browser.isConnected() && page && !page.isClosed() && serviceStatus.status === 200) {
       await reload()
     } else {
       console.log('no hay sesion que refrescar');
@@ -1187,6 +1196,7 @@ export const editCreds = async (req, res) => {
 
         await page.close();
         await browser.close();
+        browser = null;
         console.log('---------------------------');
         console.log('---------------------------');
         console.log('---------------------------');
